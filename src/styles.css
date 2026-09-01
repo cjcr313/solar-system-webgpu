@@ -1,0 +1,211 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-hud-bg: oklch(0.17 0.025 255);
+  --color-hud-border: oklch(0.55 0.03 255 / 18%);
+  --color-accent: #22d3ee;
+  --font-hud: ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-mono-hud: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, monospace;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: #04060d;
+  overflow: hidden;
+  font-family: var(--font-hud);
+  color-scheme: dark;
+}
+
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  outline: none;
+  touch-action: none;
+}
+
+/* ---------- Paneles HUD ---------- */
+.glass {
+  background: color-mix(in oklab, #0a1120 84%, transparent);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  border: 1px solid color-mix(in oklab, #94a3b8 22%, transparent);
+  box-shadow:
+    0 10px 40px rgb(0 0 0 / 0.45),
+    inset 0 1px 0 rgb(255 255 255 / 0.04);
+}
+
+.hud-btn {
+  @apply inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-slate-600/40 bg-slate-800/50 px-2.5 py-1.5 text-xs font-medium text-slate-300 transition-all duration-150 select-none;
+}
+.hud-btn:hover {
+  @apply border-cyan-400/50 bg-slate-700/60 text-cyan-200;
+}
+.hud-btn.active {
+  @apply border-cyan-400/70 bg-cyan-500/15 text-cyan-200 shadow-[0_0_12px_rgb(34_211_238/0.25)];
+}
+.hud-btn:disabled {
+  @apply cursor-not-allowed opacity-40;
+}
+
+.icon-btn {
+  @apply inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border border-slate-600/40 bg-slate-800/50 text-slate-300 transition-all duration-150;
+}
+.icon-btn:hover {
+  @apply border-cyan-400/50 text-cyan-200;
+}
+.icon-btn.active {
+  @apply border-cyan-400/70 bg-cyan-500/15 text-cyan-200;
+}
+.icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ---------- Sliders ---------- */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgb(34 211 238 / 0.8), rgb(99 102 241 / 0.8));
+  outline: none;
+  cursor: pointer;
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #eaf6ff;
+  border: 2px solid #22d3ee;
+  box-shadow: 0 0 8px rgb(34 211 238 / 0.6);
+  cursor: grab;
+}
+input[type='range']::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #eaf6ff;
+  border: 2px solid #22d3ee;
+  cursor: grab;
+}
+
+/* ---------- Toggles ---------- */
+.toggle-track {
+  @apply relative h-5 w-9 shrink-0 cursor-pointer rounded-full border border-slate-600/50 bg-slate-800/80 transition-colors duration-200;
+}
+.toggle-track.on {
+  @apply border-cyan-400/60 bg-cyan-500/25;
+}
+.toggle-knob {
+  @apply absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-slate-400 transition-all duration-200;
+}
+.toggle-track.on .toggle-knob {
+  @apply translate-x-4 bg-cyan-300;
+}
+
+/* ---------- Tabs ---------- */
+.tab-btn {
+  @apply cursor-pointer rounded-md px-2.5 py-1.5 font-mono text-[11px] tracking-wider text-slate-400 uppercase transition-all;
+}
+.tab-btn:hover {
+  @apply text-slate-200;
+}
+.tab-btn.active {
+  @apply bg-cyan-500/15 text-cyan-200 shadow-[inset_0_0_0_1px_rgb(34_211_238/0.35)];
+}
+
+/* ---------- Barras de composición ---------- */
+.bar-track {
+  @apply h-2 w-full overflow-hidden rounded-full bg-slate-700/50;
+}
+.bar-fill {
+  @apply h-full rounded-full transition-[width] duration-500;
+}
+
+/* ---------- Etiquetas 3D ---------- */
+#labels-root {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  overflow: hidden;
+}
+.body-label {
+  position: absolute;
+  transform: translate(-50%, -155%);
+  font-family: var(--font-mono-hud);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: #cfe3ff;
+  text-shadow:
+    0 1px 4px #000,
+    0 0 12px rgb(0 0 0 / 0.8);
+  pointer-events: auto;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  padding: 1px 5px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.body-label:hover {
+  color: #7deeff;
+}
+.body-label.selected {
+  color: #7deeff;
+  background: rgb(34 211 238 / 0.12);
+  box-shadow: inset 0 0 0 1px rgb(34 211 238 / 0.4);
+}
+.body-label.moon-label {
+  font-size: 9.5px;
+  color: #9db4d8;
+}
+
+/* ---------- Scrollbars ---------- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(71 85 105 / 0.6) transparent;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(71 85 105 / 0.6);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------- Chips de cuerpos ---------- */
+.chip {
+  @apply shrink-0 cursor-pointer rounded-full border border-slate-600/40 bg-slate-800/50 px-3 py-1 font-mono text-[11px] tracking-wide text-slate-300 transition-all duration-150 select-none;
+}
+.chip:hover {
+  @apply border-cyan-400/60 text-cyan-200;
+}
+.chip.active {
+  @apply border-cyan-400/80 bg-cyan-500/15 text-cyan-200;
+}
+
+.fade-in {
+  animation: fadeIn 0.35s ease both;
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

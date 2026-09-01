@@ -1,0 +1,37 @@
+{
+  "name": "solar-system-webgpu",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Simulación interactiva 3D del Sistema Solar con Three.js WebGPU, compute shaders (TSL), órbitas keplerianas reales y capa educativa científica.",
+  "type": "module",
+  "keywords": [
+    "threejs",
+    "webgpu",
+    "webgl",
+    "tsl",
+    "compute-shaders",
+    "solar-system",
+    "astronomy",
+    "education",
+    "typescript",
+    "vite"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "lucide-static": "^1.38.0",
+    "three": "^0.185.0",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/three": "^0.185.4",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.0",
+    "vite": "^7.0.0"
+  }
+}

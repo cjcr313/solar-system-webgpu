@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Simulación interactiva 3D del Sistema Solar con WebGPU, compute shaders y rigor astronómico."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪐</text></svg>"
+    />
+    <title>Sistema Solar · WebGPU</title>
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+    <div id="labels-root"></div>
+    <div id="hud-root"></div>
+
+    <div
+      id="loading"
+      class="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-[#04060d] text-slate-200"
+    >
+      <div class="relative h-16 w-16">
+        <div class="absolute inset-0 animate-ping rounded-full bg-cyan-500/20"></div>
+        <div
+          class="absolute inset-0 animate-spin rounded-full border-2 border-slate-700 border-t-cyan-400"
+        ></div>
+        <div class="absolute inset-0 flex items-center justify-center text-2xl">🪐</div>
+      </div>
+      <p id="loading-msg" class="font-mono text-sm tracking-widest text-slate-400">
+        INICIALIZANDO WEBGPU…
+      </p>
+      <noscript>
+        <p class="text-red-400">Esta simulación requiere JavaScript habilitado.</p>
+      </noscript>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
