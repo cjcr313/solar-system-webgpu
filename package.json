@@ -1,7 +1,7 @@
 {
   "name": "solar-system-webgpu",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Simulación interactiva 3D del Sistema Solar con Three.js WebGPU, compute shaders (TSL), órbitas keplerianas reales y capa educativa científica.",
   "type": "module",
   "keywords": [

@@ -65,7 +65,7 @@ export class HUD {
       </div>
 
       <!-- ===== Panel izquierdo (colapsable) ===== -->
-      <button id="panel-open-btn" class="glass icon-btn panel-hidden absolute top-20 left-3 z-20" title="Mostrar controles (H)">${icon(ICONS.panelLeftOpen)}</button>
+      <button id="panel-open-btn" class="glass icon-btn panel-hidden pointer-events-auto absolute top-20 left-3 z-20" title="Mostrar controles (H)">${icon(ICONS.panelLeftOpen)}</button>
       <div id="hud-panel" class="glass pointer-events-auto absolute top-20 left-3 z-20 max-h-[calc(100vh-11rem)] w-64 overflow-y-auto rounded-xl p-3 transition-[transform,opacity] duration-300">
           <div class="mb-3 flex items-center justify-between border-b border-slate-700/50 pb-2">
             <span class="font-mono text-[10px] font-semibold tracking-widest text-slate-400 uppercase">Controles</span>
