@@ -113,6 +113,7 @@ npm run preview
 | Seleccionar cuerpo | Clic sobre el cuerpo o su etiqueta |
 | Enfocar / seguir cuerpo | Doble clic · botón ⊕ del panel · chips laterales |
 | Vista general | Botón «Vista general» |
+| Ocultar / mostrar panel de controles | Tecla `H` · botón ✕ del panel · pestaña flotante |
 | Tiempo | Barra inferior: pausa, invertir, presets de velocidad |
 | Escalas | Panel izquierdo: modo Real/Didáctica + sliders |
 

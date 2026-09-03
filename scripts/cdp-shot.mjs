@@ -2,14 +2,16 @@
 /**
  * cdp-shot.mjs — Captura screenshot de la app tras una espera REAL,
  * vía Chrome DevTools Protocol (Chrome headless + WebSocket nativo).
- * Uso: node cdp-shot.mjs <url> <espera_ms> <salida.png>
+ * Uso: node cdp-shot.mjs <url> <espera_ms> <salida.png> [expresión_evaluar]
+ * La expresión (JS) se evalúa tras la espera y se captura 1.2 s después,
+ * útil para simular interacciones (ej: disparar un KeyboardEvent).
  */
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { writeFileSync } from 'node:fs';
 
 const execFileP = promisify(execFile);
-const [, , url, waitMs = '12000', out = '/tmp/cdp-shot.png'] = process.argv;
+const [, , url, waitMs = '12000', out = '/tmp/cdp-shot.png', evalExpr] = process.argv;
 
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PORT = 9333;
@@ -71,6 +73,11 @@ async function main() {
   await send('Page.enable');
   await send('Page.navigate', { url });
   await sleep(Number(waitMs));
+  if (evalExpr) {
+    const ev = await send('Runtime.evaluate', { expression: evalExpr });
+    console.log('[eval]', JSON.stringify(ev.result?.result ?? ev.result ?? '').slice(0, 200));
+    await sleep(1200);
+  }
   const shot = await send('Page.captureScreenshot', { format: 'png' });
   writeFileSync(out, Buffer.from(shot.result.data, 'base64'));
   console.log('SCREENSHOT OK →', out);
