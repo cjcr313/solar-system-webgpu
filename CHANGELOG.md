@@ -4,6 +4,13 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
+## [1.1.1] — 2026-09-03
+
+### Fixed
+- **Botón de reapertura del panel de controles**: no respondía al clic porque heredaba
+  `pointer-events: none` del contenedor del HUD. Ahora la pestaña flotante es
+  directamente clicable (la tecla `H` ya funcionaba).
+
 ## [1.1.0] — 2026-09-03
 
 ### Added
