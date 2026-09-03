@@ -832,7 +832,7 @@ var<${s}> ${e} : ${r};`}}const Nt=new Wa,$d=new ul,$1=new Map([[Int8Array,["sint
       </div>
 
       <!-- ===== Panel izquierdo (colapsable) ===== -->
-      <button id="panel-open-btn" class="glass icon-btn panel-hidden absolute top-20 left-3 z-20" title="Mostrar controles (H)">${Vt(Ct.panelLeftOpen)}</button>
+      <button id="panel-open-btn" class="glass icon-btn panel-hidden pointer-events-auto absolute top-20 left-3 z-20" title="Mostrar controles (H)">${Vt(Ct.panelLeftOpen)}</button>
       <div id="hud-panel" class="glass pointer-events-auto absolute top-20 left-3 z-20 max-h-[calc(100vh-11rem)] w-64 overflow-y-auto rounded-xl p-3 transition-[transform,opacity] duration-300">
           <div class="mb-3 flex items-center justify-between border-b border-slate-700/50 pb-2">
             <span class="font-mono text-[10px] font-semibold tracking-widest text-slate-400 uppercase">Controles</span>
