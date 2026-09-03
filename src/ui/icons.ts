@@ -4,6 +4,8 @@
 import playRaw from 'lucide-static/icons/play.svg?raw';
 import pauseRaw from 'lucide-static/icons/pause.svg?raw';
 import rewindRaw from 'lucide-static/icons/rewind.svg?raw';
+import panelLeftCloseRaw from 'lucide-static/icons/panel-left-close.svg?raw';
+import panelLeftOpenRaw from 'lucide-static/icons/panel-left-open.svg?raw';
 import xRaw from 'lucide-static/icons/x.svg?raw';
 import sunRaw from 'lucide-static/icons/sun.svg?raw';
 import orbitRaw from 'lucide-static/icons/orbit.svg?raw';
@@ -29,6 +31,8 @@ export const ICONS = {
   play: playRaw,
   pause: pauseRaw,
   rewind: rewindRaw,
+  panelLeftClose: panelLeftCloseRaw,
+  panelLeftOpen: panelLeftOpenRaw,
   x: xRaw,
   sun: sunRaw,
   orbit: orbitRaw,

@@ -35,6 +35,9 @@ export interface SimState {
   showBelts: boolean;
   showLabels: boolean;
 
+  /** Panel izquierdo de controles (colapsable, se recuerda entre sesiones). */
+  leftPanelOpen: boolean;
+
   selectedId: string | null;
   focusedId: string | null;
 
@@ -53,6 +56,7 @@ export interface SimActions {
   setSizeScale(v: number): void;
   setSimDays(d: number): void;
   toggle(key: 'showPlanetOrbits' | 'showMoonOrbits' | 'showBelts' | 'showLabels'): void;
+  toggleLeftPanel(): void;
   select(id: string | null): void;
   focus(id: string | null): void;
   setBackend(b: 'webgpu' | 'webgl2'): void;
@@ -65,6 +69,15 @@ export const MODE_DEFAULTS: Record<DistanceMode, { distanceScale: number; sizeSc
   real: { distanceScale: 1, sizeScale: 900 },
   didactic: { distanceScale: 1, sizeScale: 1 }
 };
+
+/** Preferencia persistida del panel de controles (localStorage). */
+function readLeftPanelPref(): boolean {
+  try {
+    return localStorage.getItem('solar:leftPanelOpen') !== '0';
+  } catch {
+    return true;
+  }
+}
 
 export const simStore = createStore<SimStore>()((set) => ({
   timeScale: SPEED_PRESETS.day.secPerSec,
@@ -80,6 +93,8 @@ export const simStore = createStore<SimStore>()((set) => ({
   showMoonOrbits: true,
   showBelts: true,
   showLabels: true,
+
+  leftPanelOpen: readLeftPanelPref(),
 
   selectedId: null,
   focusedId: null,
@@ -104,6 +119,16 @@ export const simStore = createStore<SimStore>()((set) => ({
   setSizeScale: (v) => set({ sizeScale: v }),
   setSimDays: (d) => set({ simDays: d }),
   toggle: (key) => set((s) => ({ [key]: !s[key] }) as Partial<SimState>),
+  toggleLeftPanel: () =>
+    set((s) => {
+      const open = !s.leftPanelOpen;
+      try {
+        localStorage.setItem('solar:leftPanelOpen', open ? '1' : '0');
+      } catch {
+        /* sin almacenamiento: solo estado en memoria */
+      }
+      return { leftPanelOpen: open };
+    }),
   select: (id) => set({ selectedId: id }),
   focus: (id) => set({ focusedId: id }),
   setBackend: (b) => set({ backend: b }),

@@ -26,6 +26,8 @@ export class HUD {
   private chipEls = new Map<string, HTMLButtonElement>();
   private toggleEls = new Map<ToggleKey, HTMLElement>();
   private panel!: HTMLElement;
+  private panelOpenBtn!: HTMLButtonElement;
+  private panelCloseBtn!: HTMLButtonElement;
   private interval: number;
 
   constructor(private sim: Simulation) {
@@ -62,9 +64,13 @@ export class HUD {
         </div>
       </div>
 
-      <!-- ===== Panel izquierdo ===== -->
-      <div class="flex items-stretch justify-start p-3">
-        <div id="hud-panel" class="glass pointer-events-auto fade-in max-h-[calc(100vh-190px)] w-64 overflow-y-auto rounded-xl p-3">
+      <!-- ===== Panel izquierdo (colapsable) ===== -->
+      <button id="panel-open-btn" class="glass icon-btn panel-hidden absolute top-20 left-3 z-20" title="Mostrar controles (H)">${icon(ICONS.panelLeftOpen)}</button>
+      <div id="hud-panel" class="glass pointer-events-auto absolute top-20 left-3 z-20 max-h-[calc(100vh-11rem)] w-64 overflow-y-auto rounded-xl p-3 transition-[transform,opacity] duration-300">
+          <div class="mb-3 flex items-center justify-between border-b border-slate-700/50 pb-2">
+            <span class="font-mono text-[10px] font-semibold tracking-widest text-slate-400 uppercase">Controles</span>
+            <button id="panel-close-btn" class="icon-btn h-7 w-7" title="Ocultar panel (H)">${icon(ICONS.panelLeftClose, 'w-3.5 h-3.5')}</button>
+          </div>
           <!-- Escala -->
           <section class="mb-4">
             <h2 class="mb-2 flex items-center gap-1.5 font-mono text-[10px] font-semibold tracking-widest text-slate-400 uppercase">
@@ -100,7 +106,6 @@ export class HUD {
             <div id="chips" class="flex flex-wrap gap-1"></div>
             <button id="reset-view" class="hud-btn mt-3 w-full">${icon(ICONS.focus)}&nbsp;Vista general</button>
           </section>
-        </div>
       </div>
 
       <!-- ===== Barra inferior ===== -->
@@ -134,6 +139,8 @@ export class HUD {
     this.distLabel = document.getElementById('dist-val')!;
     this.sizeLabel = document.getElementById('size-val')!;
     this.panel = document.getElementById('hud-panel')!;
+    this.panelOpenBtn = document.getElementById('panel-open-btn') as HTMLButtonElement;
+    this.panelCloseBtn = document.getElementById('panel-close-btn') as HTMLButtonElement;
     this.modeBtns.set('real', document.getElementById('mode-real') as HTMLButtonElement);
     this.modeBtns.set('didactic', document.getElementById('mode-didactic') as HTMLButtonElement);
     for (const b of document.querySelectorAll<HTMLButtonElement>('.preset-btn')) {
@@ -193,6 +200,16 @@ export class HUD {
     });
     document.getElementById('reset-view')!.addEventListener('click', () => this.sim.resetView());
 
+    // Panel de controles colapsable (botones + tecla H)
+    this.panelCloseBtn.addEventListener('click', () => simStore.getState().toggleLeftPanel());
+    this.panelOpenBtn.addEventListener('click', () => simStore.getState().toggleLeftPanel());
+    window.addEventListener('keydown', (e) => {
+      if (e.key !== 'h' && e.key !== 'H') return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      simStore.getState().toggleLeftPanel();
+    });
+
     simStore.subscribe((s, prev) => {
       if (s.paused !== prev.paused) this.refreshPause();
       if (s.speedPreset !== prev.speedPreset || s.timeScale !== prev.timeScale) this.refreshPresets();
@@ -200,6 +217,7 @@ export class HUD {
       if (s.distanceScale !== prev.distanceScale) this.distLabel.textContent = `${s.distanceScale.toFixed(2)}×`;
       if (s.sizeScale !== prev.sizeScale) this.sizeLabel.textContent = `${s.sizeScale.toFixed(2)}×`;
       if (s.selectedId !== prev.selectedId) this.refreshChips();
+      if (s.leftPanelOpen !== prev.leftPanelOpen) this.refreshPanel();
       for (const key of this.toggleEls.keys()) {
         if (s[key] !== prev[key]) this.refreshToggle(key);
       }
@@ -210,6 +228,7 @@ export class HUD {
     this.refreshPresets();
     this.refreshModeUI();
     this.refreshDynamic();
+    this.refreshPanel();
     for (const key of this.toggleEls.keys()) this.refreshToggle(key);
     const st = simStore.getState();
     this.distLabel.textContent = `${st.distanceScale.toFixed(2)}×`;
@@ -264,6 +283,12 @@ export class HUD {
     this.distLabel.textContent = `${s.distanceScale.toFixed(2)}×`;
     this.sizeLabel.textContent =
       s.distanceMode === 'real' ? `${Math.round(s.sizeScale).toLocaleString('es-CL')}×` : `${s.sizeScale.toFixed(2)}×`;
+  }
+
+  private refreshPanel() {
+    const open = simStore.getState().leftPanelOpen;
+    this.panel.classList.toggle('panel-hidden', !open);
+    this.panelOpenBtn.classList.toggle('panel-hidden', open);
   }
 
   private refreshToggle(key: ToggleKey) {

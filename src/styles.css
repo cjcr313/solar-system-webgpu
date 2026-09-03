@@ -209,3 +209,23 @@ input[type='range']::-moz-range-thumb {
     transform: none;
   }
 }
+
+/* ---------- Panel de controles colapsable ---------- */
+#hud-panel {
+  will-change: transform, opacity;
+}
+#hud-panel.panel-hidden {
+  transform: translateX(-115%) ;
+  opacity: 0;
+  pointer-events: none;
+}
+#panel-open-btn {
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
+}
+#panel-open-btn.panel-hidden {
+  opacity: 0;
+  transform: translateX(-8px);
+  pointer-events: none;
+}
