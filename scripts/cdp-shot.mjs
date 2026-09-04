@@ -11,7 +11,7 @@ import { promisify } from 'node:util';
 import { writeFileSync } from 'node:fs';
 
 const execFileP = promisify(execFile);
-const [, , url, waitMs = '12000', out = '/tmp/cdp-shot.png', evalExpr] = process.argv;
+const [, , url, waitMs = '12000', out = '/tmp/cdp-shot.png', evalExpr, postEvalMs] = process.argv;
 
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PORT = 9333;
@@ -76,7 +76,7 @@ async function main() {
   if (evalExpr) {
     const ev = await send('Runtime.evaluate', { expression: evalExpr });
     console.log('[eval]', JSON.stringify(ev.result?.result ?? ev.result ?? '').slice(0, 200));
-    await sleep(1200);
+    await sleep(Number(postEvalMs ?? 1200));
   }
   const shot = await send('Page.captureScreenshot', { format: 'png' });
   writeFileSync(out, Buffer.from(shot.result.data, 'base64'));
