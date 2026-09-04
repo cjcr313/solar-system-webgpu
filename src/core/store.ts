@@ -66,7 +66,10 @@ export interface SimActions {
 export type SimStore = SimState & SimActions;
 
 export const MODE_DEFAULTS: Record<DistanceMode, { distanceScale: number; sizeScale: number }> = {
-  real: { distanceScale: 1, sizeScale: 900 },
+  // Modo real: distancias 1:1 reales y tamaños proporcionales reales con un
+  // multiplicador moderado (25×) — suficiente para ver los cuerpos como discos
+  // sin que el Sol (109× la Tierra) invada las órbitas interiores.
+  real: { distanceScale: 1, sizeScale: 25 },
   didactic: { distanceScale: 1, sizeScale: 1 }
 };
 

@@ -4,6 +4,25 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
+## [1.2.0] — 2026-09-03
+
+### Fixed
+- **Modo escala 1:1 Real**: el Sol y los planetas ya no distorsionan el sistema.
+  Las distancias siempre fueron proporcionales reales, pero el multiplicador de
+  tamaños por defecto (900×) agrandaba el Sol (109× la Tierra) hasta invadir las
+  órbitas de Mercurio a Marte. Ahora el default es **25×**: los cuerpos se ven como
+  discos proporcionales reales sin tapar órbitas.
+
+### Changed
+- Cámara: al cambiar de modo de escala (Real ↔ Didáctica) se re-encuadra
+  automáticamente con una distancia coherente con las nuevas proporciones
+  (si no hay un cuerpo bloqueado en seguimiento).
+- Slider de tamaños en modo real: rango 1×–300× (1× = proporción total real).
+- Plano cercano de cámara 0,05 → 0,01 y zoom mínimo 0,02 unidades: permite
+  enfocar cuerpos pequeños a escala real sin clipping.
+- Resplandor solar levemente reducido para no invadir la órbita de Mercurio
+  en modo real.
+
 ## [1.1.1] — 2026-09-03
 
 ### Fixed

@@ -273,7 +273,7 @@ export class HUD {
     // rangos de sliders según modo
     if (s.distanceMode === 'real') {
       this.distSlider.min = '0.3'; this.distSlider.max = '3';
-      this.sizeSlider.min = '100'; this.sizeSlider.max = '5000'; this.sizeSlider.step = '50';
+      this.sizeSlider.min = '1'; this.sizeSlider.max = '300'; this.sizeSlider.step = '1';
     } else {
       this.distSlider.min = '0.3'; this.distSlider.max = '3';
       this.sizeSlider.min = '0.2'; this.sizeSlider.max = '3'; this.sizeSlider.step = '0.05';

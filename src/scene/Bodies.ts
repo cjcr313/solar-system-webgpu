@@ -194,7 +194,7 @@ export class BodyView {
     if (this.ringsMesh) this.ringsMesh.scale.setScalar(this.visualRadius);
     if (this.glowSprite) {
       this.glowSprite.scale.setScalar(
-        Math.max(this.visualRadius * 4.6, this.visualRadius + 0.4)
+        Math.max(this.visualRadius * 3.8, this.visualRadius + 0.25)
       );
     }
     if (this.data.moonOf && this.parentView) {
