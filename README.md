@@ -128,3 +128,12 @@ npm run preview
 ## 📄 Licencia
 
 MIT — ver [LICENSE](./LICENSE).
+
+### Créditos de texturas
+
+Las texturas planetarias de alta resolución se basan en imágenes de
+**NASA / USGS** distribuidas por
+[Solar System Scope](https://www.solarsystemscope.com/textures/) bajo licencia
+**CC BY 4.0**. El normal map de la Tierra proviene de los ejemplos de
+[three.js](https://github.com/mrdoob/three.js). El resto del arte es procedural
+(generado en runtime).
