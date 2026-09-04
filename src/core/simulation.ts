@@ -165,6 +165,12 @@ export class Simulation {
           sizeScale: state.sizeScale
         };
         this.applyScales(s);
+        // Re-encuadre coherente al cambiar de MODO (real ↔ didáctica):
+        // si no se está siguiendo un cuerpo, animar a una vista que abarque
+        // el sistema con las nuevas distancias.
+        if (state.distanceMode !== prev.distanceMode && !this.rig.isFollowing) {
+          this.rig.frameSystem(state.distanceMode === 'real' ? 760 : 120);
+        }
       }
       if (state.showPlanetOrbits !== prev.showPlanetOrbits) {
         for (const l of this.planetOrbitLines.values()) l.line.visible = state.showPlanetOrbits;

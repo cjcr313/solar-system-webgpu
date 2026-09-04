@@ -41,7 +41,7 @@ export class CameraRig {
   private tmp2 = new THREE.Vector3();
 
   constructor(canvas: HTMLCanvasElement, aspect: number) {
-    this.camera = new THREE.PerspectiveCamera(55, aspect, 0.05, 400_000);
+    this.camera = new THREE.PerspectiveCamera(55, aspect, 0.01, 400_000);
     canvas.addEventListener('pointerdown', (e) => this.onPointerDown(e, canvas));
     window.addEventListener('pointermove', (e) => this.onPointerMove(e));
     window.addEventListener('pointerup', (e) => this.onPointerUp(e));
@@ -74,7 +74,7 @@ export class CameraRig {
       const d = Math.hypot(a.x - b.x, a.y - b.y);
       if (this.pinchDist > 0) {
         const factor = this.pinchDist / Math.max(d, 1);
-        this.tRadius = THREE.MathUtils.clamp(this.tRadius * factor, 0.5, 200_000);
+        this.tRadius = THREE.MathUtils.clamp(this.tRadius * factor, 0.02, 200_000);
       }
       this.pinchDist = d;
       return;
@@ -108,7 +108,7 @@ export class CameraRig {
   private onWheel(e: WheelEvent) {
     e.preventDefault();
     const factor = Math.exp(e.deltaY * 0.0012);
-    this.tRadius = THREE.MathUtils.clamp(this.tRadius * factor, 0.5, 200_000);
+    this.tRadius = THREE.MathUtils.clamp(this.tRadius * factor, 0.02, 200_000);
   }
 
   /* ---------------- API ---------------- */
@@ -123,6 +123,16 @@ export class CameraRig {
 
   releaseFollow() {
     this.follow = null;
+  }
+
+  /**
+   * Encuadre general del sistema: centra el origen y anima la distancia
+   * de cámara (útil al cambiar de modo de escala).
+   */
+  frameSystem(distance: number) {
+    this.follow = null;
+    this.tTarget.set(0, 0, 0);
+    this.tRadius = distance;
   }
 
   get isFollowing() {

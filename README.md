@@ -120,7 +120,7 @@ npm run preview
 ## ⚠️ Notas de precisión
 
 - Las posiciones planetarias usan elementos J2000 sin perturbaciones: precisión de ~grados, adecuada para visualización educativa (no efemérides de navegación).
-- En modo didáctico, distancias y tamaños se comprimen deliberadamente (solo la geometría orbital kepleriana es fiel).
+- En modo didáctico, distancias y tamaños se comprimen deliberadamente (solo la geometría orbital kepleriana es fiel). En modo real, las distancias son proporcionales 1:1 y los tamaños conservan las proporciones reales entre cuerpos con un multiplicador común (25× por defecto, ajustable 1×–300×).
 - Las lunas orbitan en el plano local del padre con radios visuales armónicos; en modo real con tamaños ampliados se aplica un radio mínimo (marcado en el código) para que no queden dentro del planeta.
 - Los asteroides se dibujan con tamaño visual mínimo: a escala 1:1 real serían invisibles.
 - A velocidades extremas (>1 año/s sostenidos por horas), la precisión float32 de los buffers GPU puede degradar las posiciones del cinturón.
