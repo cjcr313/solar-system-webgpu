@@ -7,6 +7,23 @@
  */
 import * as THREE from 'three/webgpu';
 
+/* ---------------- Texturas reales (assets) ---------------- */
+// NASA/USGS vía Solar System Scope (CC BY 4.0) · normal map: three.js examples
+import sunTexUrl from '../assets/textures/2k_sun.jpg';
+import mercuryTexUrl from '../assets/textures/2k_mercury.jpg';
+import venusTexUrl from '../assets/textures/2k_venus_surface.jpg';
+import earthTexUrl from '../assets/textures/2k_earth_daymap.jpg';
+import earthNormalUrl from '../assets/textures/earth_normal_2048.jpg';
+import earthCloudsUrl from '../assets/textures/2k_earth_clouds.jpg';
+import moonTexUrl from '../assets/textures/2k_moon.jpg';
+import marsTexUrl from '../assets/textures/2k_mars.jpg';
+import jupiterTexUrl from '../assets/textures/2k_jupiter.jpg';
+import saturnTexUrl from '../assets/textures/2k_saturn.jpg';
+import saturnRingUrl from '../assets/textures/2k_saturn_ring_alpha.png';
+import uranusTexUrl from '../assets/textures/2k_uranus.jpg';
+import neptuneTexUrl from '../assets/textures/2k_neptune.jpg';
+import ceresTexUrl from '../assets/textures/2k_ceres_fictional.jpg';
+
 /* ---------------- PRNG + ruido ---------------- */
 
 function mulberry32(seed: number) {
@@ -378,7 +395,20 @@ export type TextureKind =
   | 'ice'
   | 'rock';
 
-export async function getBodyTexture(kind: TextureKind): Promise<THREE.CanvasTexture> {
+export async function getBodyTexture(
+  kind: TextureKind,
+  bodyId?: string
+): Promise<THREE.Texture> {
+  // 1) Textura real de alta resolución (si existe para este cuerpo)
+  const realUrl = (bodyId && REAL_BY_ID[bodyId]) || REAL_BY_KIND[kind];
+  if (realUrl) {
+    try {
+      return await loadReal(realUrl);
+    } catch (e) {
+      console.warn('[textures] textura real no disponible, usando procedural:', e);
+    }
+  }
+  // 2) Fallback procedural (canvas 2D)
   const hit = cache.get(kind);
   if (hit) return hit;
   // ceder el hilo para que el loading respire
@@ -451,11 +481,70 @@ export async function getBodyTexture(kind: TextureKind): Promise<THREE.CanvasTex
   cache.set(kind, tex);
   return tex;
 }
-
 let ringTex: THREE.CanvasTexture | null = null;
-export async function getRingTexture(): Promise<THREE.CanvasTexture> {
-  if (ringTex) return ringTex;
-  await new Promise((r) => requestAnimationFrame(r));
-  ringTex = toTexture(genRings());
-  return ringTex;
+
+const texLoader = new THREE.TextureLoader();
+
+function loadReal(url: string, srgb = true): Promise<THREE.Texture> {
+  return new Promise((resolve, reject) => {
+    texLoader.load(
+      url,
+      (t) => {
+        if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+        t.wrapS = THREE.RepeatWrapping;
+        t.anisotropy = 8;
+        resolve(t);
+      },
+      undefined,
+      reject
+    );
+  });
+}
+
+const REAL_BY_KIND: Partial<Record<TextureKind, string>> = {
+  sun: sunTexUrl,
+  mercury: mercuryTexUrl,
+  venus: venusTexUrl,
+  earth: earthTexUrl,
+  moon: moonTexUrl,
+  mars: marsTexUrl,
+  jupiter: jupiterTexUrl,
+  saturn: saturnTexUrl,
+  uranus: uranusTexUrl,
+  neptune: neptuneTexUrl
+};
+
+const REAL_BY_ID: Record<string, string> = { ceres: ceresTexUrl };
+
+/** Normal map de la Tierra (relieve) — linear, sin sRGB. */
+export async function getEarthNormal(): Promise<THREE.Texture | null> {
+  try {
+    return await loadReal(earthNormalUrl, false);
+  } catch {
+    return null;
+  }
+}
+
+/** Nubes de la Tierra (blanco sobre negro, se usan como alphaMap). */
+export async function getEarthClouds(): Promise<THREE.Texture | null> {
+  try {
+    return await loadReal(earthCloudsUrl);
+  } catch {
+    return null;
+  }
+}
+
+export interface RingTextureResult {
+  tex: THREE.Texture;
+  /** true si es el PNG real (canal alfa propio); false si es procedural. */
+  isReal: boolean;
+}
+
+export async function getRingTexture(): Promise<RingTextureResult> {
+  try {
+    return { tex: await loadReal(saturnRingUrl), isReal: true };
+  } catch {
+    if (!ringTex) ringTex = toTexture(genRings());
+    return { tex: ringTex, isReal: false };
+  }
 }

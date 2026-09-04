@@ -12,7 +12,7 @@ import { Fn, float, vec3, vec4, normalView, positionViewDirection } from 'three/
 import type { CelestialBody } from '../data/celestialData';
 import { orbitalPosition, TAU } from '../physics/kepler';
 import { bodyRadius, distanceTransform, moonOrbitRadius, type ScaleSnapshot } from '../core/scales';
-import { getBodyTexture, getRingTexture, glowTexture } from './textures';
+import { getBodyTexture, getRingTexture, getEarthNormal, getEarthClouds, glowTexture } from './textures';
 import { makeUnitCircle } from './Orbits';
 
 export class BodyView {
@@ -25,6 +25,7 @@ export class BodyView {
   readonly ringsMesh: THREE.Mesh | null = null;
   readonly moonOrbitLine: THREE.Line | null = null;
   readonly glowSprite: THREE.Sprite | null = null;
+  private cloudsMesh: THREE.Mesh | null = null;
 
   /** Radio visual actual (unidades de escena). */
   visualRadius = 1;
@@ -68,25 +69,36 @@ export class BodyView {
   }
 
   private asyncDone = false;
-  /** Carga texturas asíncronamente (una sola vez). */
+  /** Carga texturas asíncronamente (una sola vez): reales con fallback procedural. */
   async loadAssets(): Promise<void> {
     if (this.asyncDone) return;
     this.asyncDone = true;
     const mat = this.mesh.material as THREE.MeshStandardNodeMaterial;
     if (this.data.type === 'star') {
       const tex = await getBodyTexture('sun');
-      (mat as THREE.MeshStandardNodeMaterial).emissiveMap = tex;
-      (mat as THREE.MeshStandardNodeMaterial).emissive = new THREE.Color(2.4, 1.7, 0.9);
-      (mat as THREE.MeshStandardNodeMaterial).needsUpdate = true;
+      mat.emissiveMap = tex;
+      // blanco cálido neutro para respetar los colores reales de la textura
+      mat.emissive = new THREE.Color(1.9, 1.7, 1.45);
+      mat.needsUpdate = true;
     } else {
-      mat.map = await getBodyTexture(this.data.textureKind);
+      mat.map = await getBodyTexture(this.data.textureKind, this.data.id);
+      if (this.data.id === 'earth') {
+        const normal = await getEarthNormal();
+        if (normal) {
+          mat.normalMap = normal;
+          mat.normalScale = new THREE.Vector2(0.8, 0.8);
+        }
+        const clouds = await getEarthClouds();
+        if (clouds) this.buildClouds(clouds);
+      }
       mat.needsUpdate = true;
     }
     if (this.ringsMesh) {
       const rt = await getRingTexture();
       const rm = this.ringsMesh.material as THREE.MeshStandardNodeMaterial;
-      rm.map = rt;
-      rm.alphaMap = rt;
+      rm.map = rt.tex;
+      // el PNG real ya trae canal alfa propio; el procedural necesita alphaMap
+      if (!rt.isReal) rm.alphaMap = rt.tex;
       rm.transparent = true;
       rm.alphaTest = 0.02;
       rm.needsUpdate = true;
@@ -112,6 +124,24 @@ export class BodyView {
     const s = new THREE.Sprite(mat);
     s.scale.setScalar(5.2);
     return s;
+  }
+
+  /** Capa de nubes de la Tierra (esfera 1.014× con alphaMap por luminancia). */
+  private buildClouds(tex: THREE.Texture) {
+    const geo = new THREE.SphereGeometry(1.014, 48, 32);
+    const alpha = tex.clone();
+    alpha.needsUpdate = true;
+    alpha.colorSpace = THREE.NoColorSpace;
+    const mat = new THREE.MeshStandardNodeMaterial({
+      map: tex,
+      alphaMap: alpha,
+      transparent: true,
+      depthWrite: false,
+      roughness: 1
+    });
+    this.cloudsMesh = new THREE.Mesh(geo, mat);
+    this.tiltGroup.add(this.cloudsMesh);
+    if (this.visualRadius > 0) this.cloudsMesh.scale.setScalar(this.visualRadius);
   }
 
   private buildPlanet(): THREE.Mesh {
@@ -192,6 +222,7 @@ export class BodyView {
     // atmósfera y anillos viven en tiltGroup (fuera del spin): escalar aparte
     if (this.atmoMesh) this.atmoMesh.scale.setScalar(this.visualRadius);
     if (this.ringsMesh) this.ringsMesh.scale.setScalar(this.visualRadius);
+    if (this.cloudsMesh) this.cloudsMesh.scale.setScalar(this.visualRadius);
     if (this.glowSprite) {
       this.glowSprite.scale.setScalar(
         Math.max(this.visualRadius * 3.8, this.visualRadius + 0.25)
@@ -225,6 +256,8 @@ export class BodyView {
     // Rotación axial (negativa = retrógrada)
     const rot = (simDays * 24) / d.rotationHours;
     this.spinGroup.rotation.y = TAU * rot;
+    // Nubes: deriva levemente más rápida que la superficie
+    if (this.cloudsMesh) this.cloudsMesh.rotation.y = TAU * rot * 1.07;
     // cachear posición mundo para picking/labels/cámara
     this.group.getWorldPosition(this.worldPos);
   }

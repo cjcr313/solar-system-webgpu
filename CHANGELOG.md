@@ -4,6 +4,24 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
+## [1.3.0] — 2026-09-03
+
+### Added
+- **Texturas reales de alta resolución (2K)** para Sol, Mercurio, Venus, Tierra,
+  Luna, Marte, Júpiter, Saturno (+ anillos reales PNG con canal alfa), Urano,
+  Neptuno y Ceres — basadas en imágenes NASA/USGS distribuidas por
+  [Solar System Scope](https://www.solarsystemscope.com/textures/) (CC BY 4.0).
+- **Tierra nivel detalle**: mapa diurno 2K + **normal map de relieve** + **capa de
+  nubes independiente** (esfera 1.014×) con deriva levemente más rápida que la
+  superficie. Continentes, océanos y casquetes polares claramente distinguibles.
+- Sistema de fallback automático: si una textura real falla al cargar, se usa la
+  procedural original (el repo sigue funcionando sin assets).
+
+### Changed
+- El Sol ahora respeta los colores reales de su textura (emissive neutro cálido).
+- Lunas sin textura real disponible (galileanas, Titán, Encélado, Mimas, Plutón,
+  Vesta…) mantienen sus texturas procedurales.
+
 ## [1.2.0] — 2026-09-03
 
 ### Fixed
