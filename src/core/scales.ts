@@ -36,20 +36,26 @@ export function bodyRadius(radiusKm: number, s: ScaleSnapshot): number {
 
 /**
  * Radio orbital de una luna alrededor de su planeta (unidades de escena).
- * En modo real respeta la distancia real, pero garantiza un mínimo de
- * 1.45 × radio visual del padre (si no, las lunas quedan dentro del
- * planeta agrandado). Se marca como "aprox" en la órbita cuando aplica el clamp.
+ *
+ * Modo real: la órbita escala por el MISMO multiplicador de tamaños (sizeScale),
+ * de modo que la proporción distancia/radio del planeta sea exactamente la
+ * real (la Luna está a ~60 radios terrestres). Sin esto, con cuerpos
+ * agrandados ×N la Luna quedaría pegada al planeta (60/N radios visuales).
+ * Se aplica un mínimo de 1.45 × radio visual del padre como salvaguarda.
+ *
+ * Modo didáctico: radio armónico con el planeta (documentado como aproximado).
  */
 export function moonOrbitRadius(
   orbitKm: number,
   parentVisualRadius: number,
   s: ScaleSnapshot
 ): { radius: number; clamped: boolean } {
-  const real = (orbitKm / AU_KM) * AU_TO_UNITS * s.distanceScale;
   const min = parentVisualRadius * 1.45;
-  if (s.mode === 'didactic') {
-    // En didáctico se escala con el radio visual del padre para armonía visual
-    return { radius: Math.max(min, parentVisualRadius * 2 + real * 0.02), clamped: true };
+  if (s.mode === 'real') {
+    const scaled = (orbitKm / AU_KM) * AU_TO_UNITS * s.distanceScale * s.sizeScale;
+    return scaled < min ? { radius: min, clamped: true } : { radius: scaled, clamped: false };
   }
-  return real < min ? { radius: min, clamped: true } : { radius: real, clamped: false };
+  // Didáctico: se escala con el radio visual del padre para armonía visual
+  const approx = (orbitKm / AU_KM) * AU_TO_UNITS * s.distanceScale;
+  return { radius: Math.max(min, parentVisualRadius * 2 + approx * 0.02), clamped: true };
 }
