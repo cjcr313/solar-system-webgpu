@@ -4,6 +4,17 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
+## [1.4.2] — 2026-09-06
+
+### Fixed
+- **Capas finas visibles**: grosor radial mínimo (~9 px) al pintar el disco —
+  la corteza y los océanos ya se distinguen como bandas definidas en el borde
+  (antes la corteza de 0,4% quedaba sub-píxel).
+- **Cajas aún más separadas**: separación vertical mínima 42 → 58 px y las cajas
+  se alejan un poco más del ancla (30 → 34 px).
+- **Cascarones con aire**: offset radial 0,965 para que las cúpulas no se peguen
+  a la cáscara exterior (sin franjas en el borde).
+
 ## [1.4.1] — 2026-09-06
 
 ### Fixed

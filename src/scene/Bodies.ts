@@ -272,8 +272,8 @@ export class BodyView {
     const bounds = layerBoundaries(this.data);
     this.cutawayShells = [];
     this.data.structure.forEach((layer, i) => {
-      const r = bounds[i]; // frontera externa de la capa i
-      if (r > 0.985) return; // coincide con la cáscara exterior texturizada
+      const r = bounds[i] * 0.965; // frontera externa, con aire para no pegarse a la cáscara
+      if (r > 0.955) return; // coincide (casi) con la cáscara exterior texturizada
       const sm = new THREE.MeshStandardNodeMaterial({
         color: new THREE.Color(layer.color),
         roughness: 0.85,
