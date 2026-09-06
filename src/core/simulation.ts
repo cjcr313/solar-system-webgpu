@@ -14,6 +14,7 @@ import { BodyView } from '../scene/Bodies';
 import { AsteroidBelt } from '../scene/AsteroidBelt';
 import { PlanetOrbitLine } from '../scene/Orbits';
 import { LabelManager } from '../scene/Labels';
+import { CutawayLabels } from '../scene/Cutaway';
 import {
   SUN, PLANETS, MOONS, NOTABLE_ASTEROIDS,
   type CelestialBody
@@ -25,6 +26,7 @@ export class Simulation {
   readonly scene = new THREE.Scene();
   readonly rig: CameraRig;
   readonly labels = new LabelManager();
+  readonly cutawayLabels = new CutawayLabels();
   readonly bodies = new Map<string, BodyView>();
   readonly belts: AsteroidBelt[] = [];
   private readonly planetOrbitLines = new Map<string, PlanetOrbitLine>();
@@ -187,6 +189,16 @@ export class Simulation {
         this.labels.visible = state.showLabels;
       }
       if (state.selectedId !== prev.selectedId) this.labels.setSelected(state.selectedId);
+      if (state.cutawayBodyId !== prev.cutawayBodyId) {
+        for (const [id, b] of this.bodies) b.setCutaway(state.cutawayBodyId === id);
+        const active = state.cutawayBodyId ? this.bodies.get(state.cutawayBodyId) : null;
+        if (active) {
+          this.cutawayLabels.build(active.data, (i, o) => active.getCutawayAnchor(i, o));
+          this.cutawayLabels.visible = true;
+        } else {
+          this.cutawayLabels.visible = false;
+        }
+      }
     });
 
     /* ---------- Etiquetas clickeables ---------- */
@@ -363,6 +375,7 @@ export class Simulation {
 
     const simDays = simStore.getState().simDays;
     this.updateBodies(simDays, scale);
+    for (const b of this.bodies.values()) b.updateCutaway(dt);
 
     for (const b of this.belts) {
       if (b.mesh.visible) b.tick(this.renderer, simDays);
@@ -373,6 +386,10 @@ export class Simulation {
     const w = this.canvas.clientWidth;
     const h = Math.max(this.canvas.clientHeight, 1);
     this.labels.update(this.rig.camera, w, h);
+
+    const cutBody = st.cutawayBodyId ? this.bodies.get(st.cutawayBodyId) : null;
+    this.cutawayLabels.update(this.rig.camera, w, h, cutBody?.cutawayProgress ?? 0);
+    this.updateCutawayHint(st);
 
     this.renderer.render(this.scene, this.rig.camera);
 
@@ -387,6 +404,46 @@ export class Simulation {
 
   dispose() {
     this.unsubscribe();
+    this.cutawayLabels.clear();
     for (const l of this.planetOrbitLines.values()) l.dispose();
+  }
+
+  /* ---------------- Hint “Ver interior” ---------------- */
+
+  private hintEl: HTMLButtonElement | null = null;
+  private hintFor: string | null = null;
+
+  private ensureHint(): HTMLButtonElement {
+    if (this.hintEl) return this.hintEl;
+    const el = document.createElement('button');
+    el.id = 'cutaway-hint';
+    el.className = 'glass';
+    el.innerHTML = '🔭 <span>Ver interior</span>';
+    el.style.display = 'none';
+    el.addEventListener('click', () => {
+      if (this.hintFor) simStore.getState().setCutaway(this.hintFor);
+    });
+    document.getElementById('hud-root')!.appendChild(el);
+    this.hintEl = el;
+    return el;
+  }
+
+  private updateCutawayHint(st: { cutawayBodyId: string | null; focusedId: string | null }) {
+    const el = this.ensureHint();
+    let show = false;
+    if (!st.cutawayBodyId && st.focusedId) {
+      const b = this.bodies.get(st.focusedId);
+      if (
+        b &&
+        b.data.structure.length >= 2 &&
+        this.rig.isFollowing &&
+        this.rig.orbitRadius < b.visualRadius * 7
+      ) {
+        show = true;
+        this.hintFor = st.focusedId;
+      }
+    }
+    if (!show) this.hintFor = null;
+    el.style.display = show ? 'inline-flex' : 'none';
   }
 }

@@ -41,6 +41,9 @@ export interface SimState {
   selectedId: string | null;
   focusedId: string | null;
 
+  /** Cuerpo con el corte interior (cutaway) activo. */
+  cutawayBodyId: string | null;
+
   backend: 'webgpu' | 'webgl2' | 'init';
 
   fps: number;
@@ -59,6 +62,7 @@ export interface SimActions {
   toggleLeftPanel(): void;
   select(id: string | null): void;
   focus(id: string | null): void;
+  setCutaway(id: string | null): void;
   setBackend(b: 'webgpu' | 'webgl2'): void;
   setFps(f: number): void;
 }
@@ -102,6 +106,8 @@ export const simStore = createStore<SimStore>()((set) => ({
   selectedId: null,
   focusedId: null,
 
+  cutawayBodyId: null,
+
   backend: 'init',
   fps: 0,
 
@@ -134,6 +140,7 @@ export const simStore = createStore<SimStore>()((set) => ({
     }),
   select: (id) => set({ selectedId: id }),
   focus: (id) => set({ focusedId: id }),
+  setCutaway: (id) => set({ cutawayBodyId: id }),
   setBackend: (b) => set({ backend: b }),
   setFps: (f) => set({ fps: f })
 }));

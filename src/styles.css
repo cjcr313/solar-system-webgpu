@@ -229,3 +229,108 @@ input[type='range']::-moz-range-thumb {
   transform: translateX(-8px);
   pointer-events: none;
 }
+
+/* ---------- Corte interior (cutaway) ---------- */
+#cutaway-labels-root {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 25;
+  overflow: hidden;
+}
+.cutaway-box {
+  position: absolute;
+  transform: translate(16px, -50%);
+  width: 218px;
+  pointer-events: auto;
+  border-radius: 10px;
+  background: color-mix(in oklab, #0a1120 88%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid color-mix(in oklab, #94a3b8 25%, transparent);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.5);
+}
+.cutaway-box::before {
+  content: '';
+  position: absolute;
+  left: -16px;
+  top: 50%;
+  width: 16px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #22d3ee);
+}
+.cutaway-head {
+  display: flex;
+  width: 100%;
+  cursor: pointer;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  background: none;
+  border: none;
+  color: #e2e8f0;
+  font: 11.5px var(--font-hud);
+  text-align: left;
+}
+.cutaway-head:hover .cutaway-name {
+  color: #7deeff;
+}
+.cutaway-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.cutaway-name {
+  flex: 1;
+  font-weight: 600;
+}
+.cutaway-pct {
+  font-family: var(--font-mono-hud);
+  color: #7deeff;
+  font-size: 10.5px;
+}
+.cutaway-chev {
+  color: #64748b;
+  transition: transform 0.3s;
+  font-size: 10px;
+}
+.cutaway-box.open .cutaway-chev {
+  transform: rotate(180deg);
+}
+.cutaway-detail {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease;
+}
+.cutaway-detail p {
+  margin: 0;
+  padding: 0 10px 9px 25px;
+  font-size: 10.8px;
+  line-height: 1.45;
+  color: #a8b6cc;
+}
+.cutaway-box.open .cutaway-detail {
+  max-height: 150px;
+}
+
+#cutaway-hint {
+  position: fixed;
+  bottom: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 26;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  color: #cfe3ff;
+  font: 12px var(--font-hud);
+  cursor: pointer;
+  pointer-events: auto;
+  animation: fadeIn 0.3s ease both;
+}
+#cutaway-hint:hover {
+  color: #7deeff;
+}
