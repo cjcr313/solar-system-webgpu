@@ -4,6 +4,15 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
+## [1.4.3] — 2026-09-06
+
+### Fixed
+- **Distancia proporcional real de las lunas en modo 1:1**: las órbitas lunares
+  ahora escalan por el mismo multiplicador de tamaños, preservando la proporción
+  real distancia/radio del planeta (la Luna a ~60 radios terrestres, no a 2,4
+  como quedaba antes con cuerpos agrandados ×25). El sistema Tierra-Luna (y
+  cada planeta con sus lunas) mantiene su geometría real exacta.
+
 ## [1.4.2] — 2026-09-06
 
 ### Fixed
