@@ -78,6 +78,19 @@ export function layerMidRadii(body: CelestialBody): number[] {
   return mids;
 }
 
+/** Frontera EXTERNA (0..1) de cada capa, en orden centro→superficie (la última = 1). */
+export function layerBoundaries(body: CelestialBody): number[] {
+  const layers = body.structure;
+  const total = layers.reduce((s, l) => s + l.pct, 0) || 100;
+  let rOuter = 1;
+  const out: number[] = new Array(layers.length);
+  for (let i = layers.length - 1; i >= 0; i--) {
+    out[i] = rOuter;
+    rOuter = Math.sqrt(Math.max(rOuter * rOuter - layers[i].pct / total, 0));
+  }
+  return out;
+}
+
 /** Puntos de anclaje locales (espacio unitario del disco) para las etiquetas. */
 export function anchorLocals(layers: LayerInfo[], mids: number[]): THREE.Vector3[] {
   const n = layers.length;
@@ -99,6 +112,7 @@ export function anchorLocals(layers: LayerInfo[], mids: number[]): THREE.Vector3
 
 interface CutawayItem {
   el: HTMLDivElement;
+  link: HTMLDivElement;
   getWorldPos: (out: THREE.Vector3) => THREE.Vector3;
 }
 
@@ -139,38 +153,81 @@ export class CutawayLabels {
         </button>
         <div class="cutaway-detail"><p>${layer.note}</p></div>`;
       this.root.appendChild(el);
+      // línea conectora entre el ancla 3D y la caja
+      const link = document.createElement('div');
+      link.className = 'cutaway-link';
+      link.style.display = 'none';
+      this.root.appendChild(link);
       el.querySelector('.cutaway-head')!.addEventListener('click', () => {
         el.classList.toggle('open');
       });
-      this.items.push({ el, getWorldPos: (o) => getAnchorWorld(i, o) });
+      this.items.push({ el, link, getWorldPos: (o) => getAnchorWorld(i, o) });
     });
   }
 
   update(camera: THREE.PerspectiveCamera, w: number, h: number, progress: number) {
     const show = this.visible && progress > 0.72;
     if (!show) {
-      for (const it of this.items) it.el.style.display = 'none';
+      for (const it of this.items) {
+        it.el.style.display = 'none';
+        it.link.style.display = 'none';
+      }
       return;
     }
     const op = Math.min(1, (progress - 0.72) / 0.25);
+
+    // 1) proyectar anclas
+    const projected: { it: CutawayItem; ax: number; ay: number; by: number }[] = [];
     for (const it of this.items) {
       const p = it.getWorldPos(this.tmp);
       this.tmp.project(camera);
       if (this.tmp.z > 1) {
         it.el.style.display = 'none';
+        it.link.style.display = 'none';
         continue;
       }
-      const x = (this.tmp.x * 0.5 + 0.5) * w;
-      const y = (-this.tmp.y * 0.5 + 0.5) * h;
+      projected.push({
+        it,
+        ax: (this.tmp.x * 0.5 + 0.5) * w,
+        ay: (-this.tmp.y * 0.5 + 0.5) * h,
+        by: 0
+      });
+    }
+
+    // 2) anti-solape vertical: separación mínima entre cajas (push-apart)
+    const MIN_GAP = 42;
+    projected.sort((a, b) => a.ay - b.ay);
+    projected.forEach((pr, i) => {
+      pr.by = i === 0 ? pr.ay : Math.max(pr.ay, projected[i - 1].by + MIN_GAP);
+    });
+
+    // 3) posicionar cajas (a la derecha del ancla) y dibujar conectores
+    for (let i = 0; i < projected.length; i++) {
+      const { it, ax, ay } = projected[i];
+      const by = projected[i].by;
+      const bx = Math.min(ax + 30, w - 224);
       it.el.style.display = 'block';
       it.el.style.opacity = String(op);
-      it.el.style.left = `${x.toFixed(1)}px`;
-      it.el.style.top = `${y.toFixed(1)}px`;
+      it.el.style.left = `${bx.toFixed(1)}px`;
+      it.el.style.top = `${by.toFixed(1)}px`;
+
+      const dx = bx - ax;
+      const dy = by - ay;
+      const len = Math.hypot(dx, dy);
+      it.link.style.display = 'block';
+      it.link.style.opacity = String(op);
+      it.link.style.left = `${ax.toFixed(1)}px`;
+      it.link.style.top = `${ay.toFixed(1)}px`;
+      it.link.style.width = `${len.toFixed(1)}px`;
+      it.link.style.transform = `rotate(${Math.atan2(dy, dx).toFixed(4)}rad)`;
     }
   }
 
   clear() {
-    for (const it of this.items) it.el.remove();
+    for (const it of this.items) {
+      it.el.remove();
+      it.link.remove();
+    }
     this.items = [];
   }
 }

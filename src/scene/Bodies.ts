@@ -13,7 +13,7 @@ import type { CelestialBody } from '../data/celestialData';
 import { orbitalPosition, TAU } from '../physics/kepler';
 import { bodyRadius, distanceTransform, moonOrbitRadius, type ScaleSnapshot } from '../core/scales';
 import { getBodyTexture, getRingTexture, getEarthNormal, getEarthClouds, glowTexture } from './textures';
-import { makeLayerDiskTexture, layerMidRadii, anchorLocals } from './Cutaway';
+import { makeLayerDiskTexture, layerMidRadii, layerBoundaries, anchorLocals } from './Cutaway';
 import { makeUnitCircle } from './Orbits';
 
 export class BodyView {
@@ -32,6 +32,7 @@ export class BodyView {
   private cutawayGroup: THREE.Group | null = null;
   private cutawayHalfR: THREE.Mesh | null = null;
   private cutawayDisk: THREE.Mesh | null = null;
+  private cutawayShells: THREE.Mesh[] = [];
   private cutawayAnchors: THREE.Vector3[] = [];
   cutawayProgress = 0;
   private cutawayTarget = 0;
@@ -266,6 +267,32 @@ export class BodyView {
     this.cutawayDisk.rotation.y = Math.PI / 2;
     this.cutawayAnchors = anchorLocals(this.data.structure, layerMidRadii(this.data));
 
+    // cascarones concéntricos (x ≤ 0): volumen 3D interior tipo “cebolla cortada”
+    // — evita el efecto de “sola pared” hueca durante la transición
+    const bounds = layerBoundaries(this.data);
+    this.cutawayShells = [];
+    this.data.structure.forEach((layer, i) => {
+      const r = bounds[i]; // frontera externa de la capa i
+      if (r > 0.985) return; // coincide con la cáscara exterior texturizada
+      const sm = new THREE.MeshStandardNodeMaterial({
+        color: new THREE.Color(layer.color),
+        roughness: 0.85,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0
+      });
+      if (i === 0) {
+        // el núcleo brilla levemente
+        sm.emissive = new THREE.Color(layer.color).multiplyScalar(0.4);
+      }
+      const shell = new THREE.Mesh(
+        new THREE.SphereGeometry(r, 48, 32, -Math.PI / 2, Math.PI),
+        sm
+      );
+      this.cutawayShells.push(shell);
+      g.add(shell);
+    });
+
     g.add(halfL, this.cutawayHalfR, this.cutawayDisk);
     g.visible = false;
     g.scale.setScalar(this.visualRadius);
@@ -296,8 +323,11 @@ export class BodyView {
     const rm = this.cutawayHalfR!.material as THREE.MeshStandardNodeMaterial;
     rm.opacity = 1 - p;
     this.cutawayHalfR!.position.x = 0.42 * p * p;
-    // disco de capas: fade-in rápido
-    (this.cutawayDisk!.material as THREE.MeshBasicNodeMaterial).opacity = Math.min(1, p * 1.3);
+    // disco de capas: fade-in rápido (junto a los cascarones internos)
+    (this.cutawayDisk!.material as THREE.MeshBasicNodeMaterial).opacity = Math.min(1, p * 1.5);
+    for (const s of this.cutawayShells) {
+      (s.material as THREE.MeshStandardNodeMaterial).opacity = Math.min(0.98, p * 1.2);
+    }
     // las nubes tapan el corte: ocultarlas al abrir
     if (this.cloudsMesh) this.cloudsMesh.visible = p < 0.4;
   }

@@ -240,7 +240,7 @@ input[type='range']::-moz-range-thumb {
 }
 .cutaway-box {
   position: absolute;
-  transform: translate(16px, -50%);
+  transform: translateY(-50%);
   width: 218px;
   pointer-events: auto;
   border-radius: 10px;
@@ -253,11 +253,22 @@ input[type='range']::-moz-range-thumb {
 .cutaway-box::before {
   content: '';
   position: absolute;
-  left: -16px;
+  left: -6px;
   top: 50%;
-  width: 16px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22d3ee;
+  box-shadow: 0 0 8px #22d3ee;
+  transform: translateY(-50%);
+}
+.cutaway-link {
+  position: absolute;
   height: 2px;
-  background: linear-gradient(90deg, transparent, #22d3ee);
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.5), rgba(34, 211, 238, 0.95));
+  transform-origin: 0 50%;
+  pointer-events: none;
 }
 .cutaway-head {
   display: flex;
