@@ -4,6 +4,17 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
+## [1.4.1] — 2026-09-06
+
+### Fixed
+- **Volumen interior del corte**: añadidos cascarones hemisféricos concéntricos
+  (uno por capa, DoubleSide, núcleo con brillo leve) dentro de la mitad que
+  permanece — el interior ahora se ve como “cebolla cortada” 3D en vez de una
+  cáscara hueca (“una sola pared”), también durante la transición de apertura.
+- **Etiquetas de capas sin encimarse**: push-apart vertical con separación
+  mínima tras la proyección, y línea conectora real (con punto luminoso) desde
+  cada ancla del disco hasta su caja.
+
 ## [1.4.0] — 2026-09-06
 
 ### Added
