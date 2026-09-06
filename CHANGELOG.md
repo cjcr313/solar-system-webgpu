@@ -4,6 +4,21 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
+## [1.4.0] — 2026-09-06
+
+### Added
+- **Corte interior animado (cutaway)** para cualquier cuerpo con capas:
+  el planeta se “abre” — una mitad texturizada permanece, la otra se desvanece
+  deslizándose, y en el plano central aparece un disco con los anillos
+  concéntricos de sus capas internas (núcleo, manto, corteza…), generado desde
+  los datos científicos de estructura (áreas proporcionales).
+- **Etiquetas por capa con flecha**: cajas flotantes sobre cada anillo con nombre
+  y porcentaje, expandibles al clic para leer la descripción científica de la capa.
+- Tres formas de activarlo: botón ◫ del panel de detalles, botón «Ver corte 3D
+  animado» en la pestaña Estructura, y hint flotante «🔭 Ver interior» que aparece
+  al acercarse a un cuerpo enfocado.
+- Al cerrar, todo vuelve animadamente al planeta normal.
+
 ## [1.3.0] — 2026-09-03
 
 ### Added

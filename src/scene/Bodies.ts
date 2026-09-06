@@ -13,6 +13,7 @@ import type { CelestialBody } from '../data/celestialData';
 import { orbitalPosition, TAU } from '../physics/kepler';
 import { bodyRadius, distanceTransform, moonOrbitRadius, type ScaleSnapshot } from '../core/scales';
 import { getBodyTexture, getRingTexture, getEarthNormal, getEarthClouds, glowTexture } from './textures';
+import { makeLayerDiskTexture, layerMidRadii, anchorLocals } from './Cutaway';
 import { makeUnitCircle } from './Orbits';
 
 export class BodyView {
@@ -26,6 +27,14 @@ export class BodyView {
   readonly moonOrbitLine: THREE.Line | null = null;
   readonly glowSprite: THREE.Sprite | null = null;
   private cloudsMesh: THREE.Mesh | null = null;
+
+  // Corte interior (cutaway)
+  private cutawayGroup: THREE.Group | null = null;
+  private cutawayHalfR: THREE.Mesh | null = null;
+  private cutawayDisk: THREE.Mesh | null = null;
+  private cutawayAnchors: THREE.Vector3[] = [];
+  cutawayProgress = 0;
+  private cutawayTarget = 0;
 
   /** Radio visual actual (unidades de escena). */
   visualRadius = 1;
@@ -92,6 +101,12 @@ export class BodyView {
         if (clouds) this.buildClouds(clouds);
       }
       mat.needsUpdate = true;
+      // sincronizar la mitad deslizante del corte con la textura cargada
+      if (this.cutawayHalfR) {
+        const rm = this.cutawayHalfR.material as THREE.MeshStandardNodeMaterial;
+        rm.map = mat.map;
+        rm.needsUpdate = true;
+      }
     }
     if (this.ringsMesh) {
       const rt = await getRingTexture();
@@ -211,6 +226,82 @@ export class BodyView {
     if (this.moonOrbitLine) parent.group.add(this.moonOrbitLine);
   }
 
+  /* ---------------- Corte interior (cutaway) ---------------- */
+
+  /** Activa/desactiva el corte animado del cuerpo. */
+  setCutaway(on: boolean) {
+    this.cutawayTarget = on ? 1 : 0;
+    if (on && !this.cutawayGroup) this.buildCutaway();
+  }
+
+  get cutawayActive(): boolean {
+    return this.cutawayTarget === 1;
+  }
+
+  private buildCutaway() {
+    const g = new THREE.Group();
+    const baseMat = this.mesh.material as THREE.MeshStandardNodeMaterial;
+    const matR = baseMat.clone();
+    matR.transparent = true;
+    // mitad que permanece (x ≤ 0) y mitad que se abre (x ≥ 0)
+    const halfL = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 48, 32, -Math.PI / 2, Math.PI),
+      baseMat
+    );
+    this.cutawayHalfR = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 48, 32, Math.PI / 2, Math.PI),
+      matR
+    );
+    // disco de capas: semicírculo en el plano YZ con normal +X
+    const diskMat = new THREE.MeshBasicNodeMaterial({
+      map: makeLayerDiskTexture(this.data),
+      transparent: true,
+      opacity: 0,
+      side: THREE.DoubleSide
+    });
+    this.cutawayDisk = new THREE.Mesh(
+      new THREE.CircleGeometry(0.995, 96, -Math.PI / 2, Math.PI),
+      diskMat
+    );
+    this.cutawayDisk.rotation.y = Math.PI / 2;
+    this.cutawayAnchors = anchorLocals(this.data.structure, layerMidRadii(this.data));
+
+    g.add(halfL, this.cutawayHalfR, this.cutawayDisk);
+    g.visible = false;
+    g.scale.setScalar(this.visualRadius);
+    this.cutawayGroup = g;
+    this.tiltGroup.add(g);
+  }
+
+  /** Posición world del anclaje de la etiqueta de la capa i. */
+  getCutawayAnchor(i: number, out: THREE.Vector3): THREE.Vector3 {
+    if (!this.cutawayGroup || !this.cutawayAnchors[i]) return out.set(0, 0, 0);
+    this.cutawayGroup.updateWorldMatrix(true, false);
+    return this.cutawayGroup.localToWorld(out.copy(this.cutawayAnchors[i]));
+  }
+
+  /** Anima la apertura/cierre del corte (lerp exponencial, ~0.6 s). */
+  updateCutaway(dt: number) {
+    if (!this.cutawayGroup) return;
+    const k = 1 - Math.exp(-dt * 4.2);
+    this.cutawayProgress += (this.cutawayTarget - this.cutawayProgress) * k;
+    if (Math.abs(this.cutawayTarget - this.cutawayProgress) < 0.002) {
+      this.cutawayProgress = this.cutawayTarget;
+    }
+    const p = this.cutawayProgress;
+    this.cutawayGroup.visible = p > 0.001;
+    // la esfera completa solo aparece completamente cerrada
+    this.mesh.visible = p < 0.02;
+    // mitad derecha: se desvanece mientras se desliza (easeOut cuadrático)
+    const rm = this.cutawayHalfR!.material as THREE.MeshStandardNodeMaterial;
+    rm.opacity = 1 - p;
+    this.cutawayHalfR!.position.x = 0.42 * p * p;
+    // disco de capas: fade-in rápido
+    (this.cutawayDisk!.material as THREE.MeshBasicNodeMaterial).opacity = Math.min(1, p * 1.3);
+    // las nubes tapan el corte: ocultarlas al abrir
+    if (this.cloudsMesh) this.cloudsMesh.visible = p < 0.4;
+  }
+
   get parent(): BodyView | null {
     return this.parentView;
   }
@@ -223,6 +314,7 @@ export class BodyView {
     if (this.atmoMesh) this.atmoMesh.scale.setScalar(this.visualRadius);
     if (this.ringsMesh) this.ringsMesh.scale.setScalar(this.visualRadius);
     if (this.cloudsMesh) this.cloudsMesh.scale.setScalar(this.visualRadius);
+    if (this.cutawayGroup) this.cutawayGroup.scale.setScalar(this.visualRadius);
     if (this.glowSprite) {
       this.glowSprite.scale.setScalar(
         Math.max(this.visualRadius * 3.8, this.visualRadius + 0.25)

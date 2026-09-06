@@ -139,6 +139,11 @@ export class CameraRig {
     return this.follow !== null;
   }
 
+  /** Distancia orbital actual de la cámara a su objetivo. */
+  get orbitRadius(): number {
+    return this.radius;
+  }
+
   resize(aspect: number) {
     this.camera.aspect = aspect;
     this.camera.updateProjectionMatrix();

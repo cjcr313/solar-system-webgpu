@@ -38,6 +38,7 @@ export class DetailsPanel {
         if (this.current) this.show();
         else this.hide();
       }
+      if (s.cutawayBodyId !== prev.cutawayBodyId && this.current) this.render();
     });
   }
 
@@ -73,6 +74,8 @@ export class DetailsPanel {
     if (!b) return;
     const typeLabel = BODY_TYPE_LABEL[b.type];
     const ringColor = '#' + b.color.toString(16).padStart(6, '0');
+    const canCut = b.structure.length >= 2 && !b.id.startsWith('belt:');
+    const cutOn = simStore.getState().cutawayBodyId === b.id;
 
     this.root.innerHTML = `
       <div class="flex items-start justify-between gap-2 border-b border-slate-700/50 p-3">
@@ -84,6 +87,7 @@ export class DetailsPanel {
           </div>
         </div>
         <div class="flex items-center gap-1">
+          <button id="dp-cutaway" class="icon-btn ${cutOn ? 'active' : ''}" style="${canCut ? '' : 'display:none'}" title="Ver interior (corte animado)">${icon(ICONS.layers)}</button>
           <button id="dp-focus" class="icon-btn" title="Enfocar cámara">${icon(ICONS.focus)}</button>
           <button id="dp-close" class="icon-btn" title="Cerrar">${icon(ICONS.x)}</button>
         </div>
@@ -103,6 +107,13 @@ export class DetailsPanel {
 
     this.root.querySelector('#dp-close')!.addEventListener('click', () => this.close());
     this.root.querySelector('#dp-focus')!.addEventListener('click', () => this.focusCurrent());
+    const toggleCut = () => {
+      if (!this.current) return;
+      const cur = simStore.getState().cutawayBodyId;
+      simStore.getState().setCutaway(cur === this.current.id ? null : this.current.id);
+    };
+    this.root.querySelector('#dp-cutaway')?.addEventListener('click', toggleCut);
+    this.root.querySelector('[data-cut]')?.addEventListener('click', toggleCut);
     for (const el of this.root.querySelectorAll<HTMLButtonElement>('[data-tab]')) {
       el.addEventListener('click', () => this.setTab(el.dataset.tab as Tab));
     }
@@ -182,7 +193,10 @@ export class DetailsPanel {
           </div>`
           )
           .join('')}
-      </div>`;
+      </div>
+      ${b.structure.length >= 2 && !b.id.startsWith('belt:')
+        ? `<button class="hud-btn mt-3 w-full" data-cut="1">${icon(ICONS.layers)}&nbsp;Ver corte 3D animado</button>`
+        : ''}`;
   }
 
   private atmosphereTab(b: CelestialBody): string {
