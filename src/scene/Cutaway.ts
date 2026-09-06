@@ -28,13 +28,18 @@ export function makeLayerDiskTexture(body: CelestialBody): THREE.CanvasTexture {
   const total = layers.reduce((s, l) => s + l.pct, 0) || 100;
 
   ctx.clearRect(0, 0, S, S);
+  // grosor radial mínimo visual: las capas ultrafinas (corteza/océanos)
+  // nunca bajan de ~9 px para que se distingan en el disco
+  const MIN_PX = 9;
   let rOuter = R;
   for (const l of layers) {
     const frac = l.pct / total;
-    const rInner = Math.sqrt(Math.max(rOuter * rOuter - frac * R * R, 0));
+    let rInner = Math.sqrt(Math.max(rOuter * rOuter - frac * R * R, 0));
+    rInner = Math.min(rInner, rOuter - MIN_PX);
+    if (rOuter - rInner < 1) rInner = rOuter - 1;
     ctx.beginPath();
     ctx.arc(cx, cy, rOuter, 0, Math.PI * 2);
-    ctx.arc(cx, cy, rInner, 0, Math.PI * 2, true);
+    ctx.arc(cx, cy, Math.max(rInner, 1), 0, Math.PI * 2, true);
     ctx.fillStyle = l.color;
     ctx.fill();
     if (rInner > 3) {
@@ -45,7 +50,7 @@ export function makeLayerDiskTexture(body: CelestialBody): THREE.CanvasTexture {
       ctx.lineWidth = 3;
       ctx.stroke();
     }
-    rOuter = rInner;
+    rOuter = Math.max(rInner, 1);
   }
   // brillo radial del núcleo (lo que queda al centro)
   if (rOuter > 2) {
@@ -195,7 +200,7 @@ export class CutawayLabels {
     }
 
     // 2) anti-solape vertical: separación mínima entre cajas (push-apart)
-    const MIN_GAP = 42;
+    const MIN_GAP = 58;
     projected.sort((a, b) => a.ay - b.ay);
     projected.forEach((pr, i) => {
       pr.by = i === 0 ? pr.ay : Math.max(pr.ay, projected[i - 1].by + MIN_GAP);
@@ -205,7 +210,7 @@ export class CutawayLabels {
     for (let i = 0; i < projected.length; i++) {
       const { it, ax, ay } = projected[i];
       const by = projected[i].by;
-      const bx = Math.min(ax + 30, w - 224);
+      const bx = Math.min(ax + 34, w - 224);
       it.el.style.display = 'block';
       it.el.style.opacity = String(op);
       it.el.style.left = `${bx.toFixed(1)}px`;
