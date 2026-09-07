@@ -4,6 +4,16 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
+## [1.4.4] — 2026-09-06
+
+### Fixed
+- **Resplandor solar desproporcionado en modo 1:1**: el halo del Sol era 3,8× el
+  radio del disco y bañaba la órbita de Mercurio, haciendo percibir al Sol más
+  grande de lo que corresponde. En modo real ahora es compacto (2,1× el radio,
+  opacidad 55%); en modo didáctico conserva su lucimiento. El disco solar en 1:1
+  con tamaños ×25 ocupa ~30% del radio de la órbita de Mercurio (en proporción
+  absoluta real es 1,2%, alcanzable con el multiplicador en 1×).
+
 ## [1.4.3] — 2026-09-06
 
 ### Fixed

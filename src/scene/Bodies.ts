@@ -346,9 +346,15 @@ export class BodyView {
     if (this.cloudsMesh) this.cloudsMesh.scale.setScalar(this.visualRadius);
     if (this.cutawayGroup) this.cutawayGroup.scale.setScalar(this.visualRadius);
     if (this.glowSprite) {
+      // En modo real el resplandor es compacto: el disco solar es ~30% del radio
+      // de la órbita de Mercurio (con tamaños ×25) y el halo no debe invadirla.
+      // En didáctico se permite lucir más grande.
+      const glowFactor = s.mode === 'real' ? 2.1 : 3.8;
       this.glowSprite.scale.setScalar(
-        Math.max(this.visualRadius * 3.8, this.visualRadius + 0.25)
+        Math.max(this.visualRadius * glowFactor, this.visualRadius + 0.25)
       );
+      (this.glowSprite.material as THREE.SpriteNodeMaterial).opacity =
+        s.mode === 'real' ? 0.55 : 1.0;
     }
     if (this.data.moonOf && this.parentView) {
       const { radius } = moonOrbitRadius(
