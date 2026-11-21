@@ -144,6 +144,21 @@ export class CameraRig {
     return this.radius;
   }
 
+  /** Punto que mira la cámara (para luces de acompañamiento). */
+  get focusPoint(): THREE.Vector3 {
+    return this.target;
+  }
+
+  /**
+   * Apunta la órbita hacia un azimuth/elevación concretos (animado por la
+   * amortiguación habitual). Usado para encuadres guiados: lado solar al
+   * enfocar, cara abierta del corte interior…
+   */
+  aimOrbit(theta: number, phi: number) {
+    this.tTheta = theta;
+    this.tPhi = THREE.MathUtils.clamp(phi, 0.05, Math.PI - 0.05);
+  }
+
   resize(aspect: number) {
     this.camera.aspect = aspect;
     this.camera.updateProjectionMatrix();
