@@ -40,6 +40,7 @@ export class Simulation {
   private readonly sAnti = new THREE.Vector3();
   private readonly sVel = new THREE.Vector3();
   private readonly sCam = new THREE.Vector3();
+  private readonly headlamp: THREE.DirectionalLight;
   private readonly renderer: THREE.WebGPURenderer;
   private readonly canvas: HTMLCanvasElement;
   private readonly picker: Picker;
@@ -65,6 +66,12 @@ export class Simulation {
     const sunLight = new THREE.PointLight(0xfff2dd, 3.2, 0, 0); // decay 0
     this.scene.add(sunLight);
     this.scene.add(new THREE.AmbientLight(0x28324a, 0.42));
+    // Luz de acompañamiento (headlamp): ilumina la cara que mira la cámara
+    // — el lado noche de un planeta enfocado y el interior de un corte no
+    // quedan en negro absoluto (legibilidad didáctica).
+    this.headlamp = new THREE.DirectionalLight(0xcfe0ff, 0);
+    this.scene.add(this.headlamp);
+    this.scene.add(this.headlamp.target);
 
     /* ---------- Estrellas de fondo ---------- */
     this.scene.add(this.buildStarfield());
@@ -180,6 +187,8 @@ export class Simulation {
 
     /* ---------- Cámara + picking ---------- */
     this.rig = new CameraRig(canvas, canvas.clientWidth / Math.max(canvas.clientHeight, 1));
+    // Encuadre inicial coherente: ver el sistema con el Sol iluminando de frente
+    this.rig.aimOrbit(Math.PI * 0.85, 1.05);
     this.picker = new Picker(
       this.rig.camera,
       this.pickables,
@@ -234,6 +243,11 @@ export class Simulation {
         if (active) {
           this.cutawayLabels.build(active.data, (i, o) => active.getCutawayAnchor(i, o));
           this.cutawayLabels.visible = true;
+          // Encuadre guiado: mirar la CARA ABIERTA del corte con leve
+          // elevación (las cúpulas internas se aprecian en volumen).
+          active.getWorldPos(this.sVel);
+          const d = active.getCutawayOpenDir(this.sAnti);
+          this.rig.aimOrbit(Math.atan2(d.x, d.z), 1.02);
         } else {
           this.cutawayLabels.visible = false;
         }
@@ -353,6 +367,15 @@ export class Simulation {
       { getPos: (o) => b.getWorldPos(o), getRadius: () => radius },
       b.data.type === 'star' ? 9 : isComet ? 5.5 : 4.5
     );
+    // Encuadre guiado según tipo de cuerpo:
+    // - Planetas: cámara del LADO DEL SOL (cara iluminada, nunca lado noche).
+    // - Cometas: PERPENDICULAR al radio solar — las colas (anti-solares)
+    //   cruzan el encuadre de LADO; de frente se leen como cuñas sin forma.
+    const p = b.getWorldPos(this.sAnti);
+    if (p.lengthSq() > 1e-9) {
+      const sunTheta = Math.atan2(-p.x, -p.z);
+      this.rig.aimOrbit(isComet ? sunTheta + Math.PI / 2 : sunTheta, 1.12);
+    }
     simStore.getState().focus(id);
   }
 
@@ -432,6 +455,11 @@ export class Simulation {
     }
 
     this.rig.update(dt);
+
+    // Headlamp: sigue a la cámara e ilumina lo que se mira
+    this.headlamp.position.copy(this.rig.camera.position);
+    this.headlamp.target.position.copy(this.rig.focusPoint);
+    this.headlamp.intensity = st.cutawayBodyId ? 0.85 : this.rig.isFollowing ? 0.45 : 0.08;
 
     const w = this.canvas.clientWidth;
     const h = Math.max(this.canvas.clientHeight, 1);

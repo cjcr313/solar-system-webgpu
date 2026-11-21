@@ -4,6 +4,29 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
+## [1.5.1] — 2026-11-21
+
+### Fixed
+- **Corte interior mal encuadrado y oscuro**: al activar el corte, la cámara
+  ahora vuela a la CARA ABIERTA (antes podía quedar mirando la cáscara cerrada
+  o el corte de canto); las cúpulas internas tienen brillo propio por capa y
+  una luz de acompañamiento (headlamp) ilumina el interior — el lado noche
+  del planeta ya no queda en negro absoluto.
+- **Cuerpos enfocados en su lado noche**: al enfocar cualquier cuerpo, la
+  cámara se coloca del lado del Sol (cara iluminada). En cometas, perpendicular
+  al radio solar: las colas cruzan el encuadre de lado, nunca en escorzo
+  (de frente se leían como cuñas sin forma).
+- **Colas de cometas más legibles**: envoltura iónica + núcleo interior
+  brillante, abanico de polvo de 3 cintas más abierto y curvado, bordes más
+  suaves (verificado por análisis de píxeles: degradado 723→2 a lo largo).
+
+### Added
+- Luz de acompañamiento que sigue a la cámara al enfocar/cortar
+  (legibilidad didáctica sin sacrificar el realismo del terminador).
+- QA funcional automatizado: 20 verificaciones E2E con Chrome headless
+  (carga, backend, chips, escalas, sliders, tiempo, panel, pestañas, focus,
+  corte interior, etiquetas, teclas, cometas).
+
 ## [1.5.0] — 2026-11-20
 
 ### Added

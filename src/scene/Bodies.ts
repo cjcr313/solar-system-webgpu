@@ -285,10 +285,9 @@ export class BodyView {
         transparent: true,
         opacity: 0
       });
-      if (i === 0) {
-        // el núcleo brilla levemente
-        sm.emissive = new THREE.Color(layer.color).multiplyScalar(0.4);
-      }
+      // brillo propio por capa: las cúpulas internas se leen aunque la luz
+      // del Sol sea rasante (el interior del corte no queda en sombra total)
+      sm.emissive = new THREE.Color(layer.color).multiplyScalar(i === 0 ? 0.45 : 0.22);
       const shell = new THREE.Mesh(
         new THREE.SphereGeometry(r, 48, 32, -Math.PI / 2, Math.PI),
         sm
@@ -338,6 +337,15 @@ export class BodyView {
 
   get parent(): BodyView | null {
     return this.parentView;
+  }
+
+  /** Dirección MUNDO de la cara abierta del corte (+X local del grupo del corte). */
+  getCutawayOpenDir(out: THREE.Vector3): THREE.Vector3 {
+    if (!this.cutawayGroup) return out.set(1, 0, 0);
+    this.cutawayGroup.updateWorldMatrix(true, false);
+    const q = new THREE.Quaternion();
+    this.cutawayGroup.getWorldQuaternion(q);
+    return out.set(1, 0, 0).applyQuaternion(q).normalize();
   }
 
   /** Recalcula radios visuales y órbitas al cambiar la escala. */
