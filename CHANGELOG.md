@@ -4,6 +4,38 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
+## [1.5.0] — 2026-11-20
+
+### Added
+- **Cometas famosos con colas dinámicas**: 1P/Halley, 2P/Encke,
+  67P/Churyumov–Gerasimenko y 109P/Swift–Tuttle, con elementos orbitales
+  keplerianos reales (M0 en J2000 derivado de la fecha de perihelio) — órbitas
+  hiperelípticas (e hasta 0,967) y retrógradas (Halley 162°, Swift–Tuttle 113°).
+- **Cola iónica + cola de polvo**: la iónica (azul-cian, con estrías y fresnel
+  volumétrico) apunta EXACTAMENTE en dirección anti-solar; la de polvo (dorada,
+  dos capas curvadas) queda desviada y curvada contra la trayectoria por
+  inercia. La actividad crece al acercarse al Sol (sublimación, línea de hielo
+  ~4,5 UA): lejos del Sol son puntos tenues; en perihelio despliegan colas
+  completas que "respiran". Las longitudes (estilizadas, ~0,9 UA máx.) se
+  convierten con la misma transformación de distancias del sistema (coherente
+  en modo real y didáctico).
+- **Panel científico por cometa**: perihelio (q) y afelio (Q), último y próximo
+  paso perihélico, sentido retrógrado, composición de la coma (H₂O, CO, CO₂…),
+  estructura interna ("bola de nieve sucia") y misiones (Giotto, Vega, la
+  Armada de Halley, Rosetta/Philae…), con nota educativa: las colas apuntan
+  SIEMPRE lejos del Sol — el cometa no "deja rastro".
+- Toggle **«Cometas (colas)»** en el panel de visibilidad, chips de navegación
+  y etiquetas ☄️ clickeables (con selección y enfoque cinematográfico).
+- Enfoque de cámara con piso de encuadre para núcleos diminutos (2–26 km):
+  la cámara encuadra la región de coma + colas, no el puntito sub-píxel.
+- Hook `window.__solarSetDate(días)` para pruebas E2E de viaje temporal.
+
+### Changed
+- **Solver de Kepler robusto para alta excentricidad**: Newton-Raphson con
+  verificación de residuo y bisección garantizada como respaldo (f(E) es
+  monótona creciente; la raíz vive en [M−e, M+e]) — necesario para e ≈ 0,97
+  de Halley y Swift–Tuttle.
+
 ## [1.4.4] — 2026-09-06
 
 ### Fixed

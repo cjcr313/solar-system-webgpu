@@ -9,7 +9,7 @@ import { icon, ICONS } from './icons';
 import { ALL_BODIES } from '../data/celestialData';
 import type { Simulation } from '../core/simulation';
 
-type ToggleKey = 'showPlanetOrbits' | 'showMoonOrbits' | 'showBelts' | 'showLabels';
+type ToggleKey = 'showPlanetOrbits' | 'showMoonOrbits' | 'showBelts' | 'showComets' | 'showLabels';
 
 export class HUD {
   private dateEl!: HTMLElement;
@@ -153,6 +153,7 @@ export class HUD {
       ['showPlanetOrbits', 'Órbitas planetarias'],
       ['showMoonOrbits', 'Órbitas de lunas'],
       ['showBelts', 'Cinturones (GPU)'],
+      ['showComets', 'Cometas (colas)'],
       ['showLabels', 'Etiquetas']
     ];
     for (const [key, label] of items) {

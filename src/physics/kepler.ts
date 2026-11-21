@@ -37,7 +37,10 @@ export const TAU = Math.PI * 2;
 export const GAUSS_K = 0.01720209895;
 
 export function solveKepler(M: number, e: number): number {
-  // Inicializador E0 = π: convergencia global robusta para e < 0.8
+  // Inicializador E0 = π: convergencia global robusta para e < 0.8.
+  // Para excentricidades cometarias (e > 0.8) Newton puede oscilar:
+  // como f(E) = E − e·sinE − M es monótona creciente (f' ≥ 1−e > 0),
+  // se verifica el residuo y se cae a bisección garantizada en [M−e, M+e].
   let E = Math.PI;
   for (let k = 0; k < 12; k++) {
     const f = E - e * Math.sin(E) - M;
@@ -45,6 +48,18 @@ export function solveKepler(M: number, e: number): number {
     const dE = f / fp;
     E -= dE;
     if (Math.abs(dE) < 1e-10) break;
+  }
+  if (Math.abs(E - e * Math.sin(E) - M) > 1e-9) {
+    // Bisección a prueba de todo: la raíz siempre está en [M−e, M+e]
+    let lo = M - e;
+    let hi = M + e;
+    for (let k = 0; k < 64; k++) {
+      const mid = (lo + hi) * 0.5;
+      const f = mid - e * Math.sin(mid) - M;
+      if (f < 0) lo = mid;
+      else hi = mid;
+    }
+    E = (lo + hi) * 0.5;
   }
   return E;
 }

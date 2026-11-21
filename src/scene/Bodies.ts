@@ -166,6 +166,10 @@ export class BodyView {
       roughness: 0.92,
       metalness: 0.0
     });
+    // núcleos cometarios: leve brillo propio para no verlos como puntos negros
+    if (this.data.type === 'comet') {
+      mat.emissive = new THREE.Color(0.28, 0.34, 0.42);
+    }
     return new THREE.Mesh(geo, mat);
   }
 

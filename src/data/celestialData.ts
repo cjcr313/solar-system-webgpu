@@ -14,7 +14,7 @@
  *  (Cassini, Dawn, Galileo, Juno, InSight, New Horizons, Voyager).
  */
 
-export type BodyType = 'star' | 'planet' | 'dwarf-planet' | 'moon' | 'asteroid';
+export type BodyType = 'star' | 'planet' | 'dwarf-planet' | 'moon' | 'asteroid' | 'comet';
 
 export interface LayerInfo {
   name: string;
@@ -46,6 +46,23 @@ export interface AtmosphereInfo {
   tempRange?: string;
   winds?: string;
   notes?: string;
+}
+
+export interface CometInfo {
+  /** Designación oficial (1P, 2P, 67P, 109P…) */
+  designation: string;
+  /** Distancia perihélica q (UA) */
+  perihelionAU: number;
+  /** Distancia afélica Q (UA) */
+  aphelionAU: number;
+  /** Último paso perihélico (texto) */
+  lastPerihelion: string;
+  /** Próximo paso perihélico previsto (texto) */
+  nextPerihelion: string;
+  /** Órbita retrógrada (i > 90°) */
+  retrograde: boolean;
+  /** Nota educativa sobre la cola */
+  tailNote: string;
 }
 
 export interface OrbitalElementsData {
@@ -102,6 +119,8 @@ export interface CelestialBody {
   orbital?: OrbitalElementsData;
   /** Órbita local alrededor del padre (lunas) */
   moonOf?: MoonOrbitData;
+  /** Datos específicos de cometa (perihelios, cola…) */
+  comet?: CometInfo;
   rings?: { innerKm: number; outerKm: number };
   atmosphereColor?: number;
   atmosphereIntensity?: number;
@@ -925,6 +944,225 @@ export const HYGIEA: CelestialBody = {
 };
 
 /* ---------------------------------------------------------------------------
+ * COMETAS — elementos keplerianos reales (época ≈ J2000)
+ * M0 derivado de la fecha de perihelio: M0 = 360°·(JD_J2000 − T_peri)/P.
+ * Fuentes: JPL Small-Body Database, NASA/JPL Comet Fact Sheets.
+ * ------------------------------------------------------------------------ */
+
+/** 1P/Halley — el clásico. Perihelio 1986-02-09 (JD 2446470.9), P = 75,32 años. */
+export const HALLEY: CelestialBody = {
+  id: 'halley',
+  name: '1P/Halley',
+  type: 'comet',
+  color: 0x7fc9ff,
+  textureKind: 'ice',
+  radiusKm: 5.5,
+  axialTiltDeg: 0,
+  rotationHours: 52.8,
+  orbital: { a: 17.834, e: 0.96714, iDeg: 162.26, OmegaDeg: 58.42, omegaDeg: 111.33, M0Deg: 66.42, periodDays: 27_510 },
+  comet: {
+    designation: '1P',
+    perihelionAU: 0.586,
+    aphelionAU: 35.08,
+    lastPerihelion: '9 feb 1986',
+    nextPerihelion: '≈ 28 jul 2061',
+    retrograde: true,
+    tailNote:
+      'Sus dos colas apuntan SIEMPRE en dirección contraria al Sol: la iónica (azul, recta) es viento solar barriendo iones; la de polvo (dorada, curvada) queda rezagada por inercia. El cometa no “deja rastro” — es un faro soplado por el Sol.'
+  },
+  physical: {
+    massKg: '2,2 × 10¹⁴ kg',
+    densityGcm3: 0.6,
+    gravityMs2: 0.0005,
+    escapeKms: 0.07,
+    meanTempC: '≈ −70 °C (núcleo)'
+  },
+  structure: [
+    { name: 'Corteza de polvo y orgánicos', pct: 8, color: '#8a7a66', note: 'Costra oscura (albedo 0,04 — más negro que el carbón) que atrapa el hielo interior.' },
+    { name: 'Hielos de H₂O, CO y CO₂', pct: 65, color: '#a8d8ea', note: '“Bola de nieve sucia”: el 80 % del deshielo es vapor de agua.' },
+    { name: 'Núcleo rocoso', pct: 27, color: '#6b5d52', note: 'Material refractario primitivo desde la formación del sistema (4,6 Ga).' }
+  ],
+  atmosphere: {
+    composition: [
+      { gas: 'H₂O (vapor)', pct: 80 },
+      { gas: 'CO', pct: 6 },
+      { gas: 'CO₂', pct: 4 },
+      { gas: 'N₂ / otros', pct: 10 }
+    ],
+    pressure: '≈ 10⁻⁵ bar (coma activa)',
+    tempMean: '≈ −70 °C',
+    notes: 'La “coma” no es atmósfera permanente: es la nube de gas y polvo que exhala el núcleo al acercarse al Sol, hasta 100 000 km de tamaño.'
+  },
+  missions: [
+    { name: 'Giotto', agency: 'ESA', year: '1986', highlight: 'Pasó a 596 km del núcleo: primera imagen de la superficie de un cometa.' },
+    { name: 'Vega 1 y 2', agency: 'URSS', year: '1986', highlight: 'Sobrevuelos a 8 900 km; enviaron la primera imagen del núcleo de Halley.' },
+    { name: 'Suisei y Sakigake', agency: 'ISAS (Japón)', year: '1986', highlight: 'La “Armada de Halley”: 5 naves de 3 países se coordinaron para el retorno.' },
+    { name: 'Edmond Halley', agency: 'Predicción matemática', year: '1705 → 1758', highlight: 'Reconoció la órbita de 1531/1607/1682 y predijo el retorno de 1758. Acertó.' }
+  ],
+  summary:
+    'El veterano célebre: primer cometa cuyo retorno fue predicho por matemática pura. Cada 75–76 años asombra a una nueva generación; la próxima cita es en julio de 2061. Órbita retrógrada (162°): gira “al revés” que los planetas.'
+};
+
+/** 2P/Encke — el esprintador. Perihelio 2000-09-29 (JD 2451817.3), P = 3,30 años. */
+export const ENCKE: CelestialBody = {
+  id: 'encke',
+  name: '2P/Encke',
+  type: 'comet',
+  color: 0x9fe0c8,
+  textureKind: 'ice',
+  radiusKm: 2.4,
+  axialTiltDeg: 0,
+  rotationHours: 15.1,
+  orbital: { a: 2.2179, e: 0.8483, iDeg: 11.78, OmegaDeg: 334.57, omegaDeg: 186.54, M0Deg: 278.7, periodDays: 1205 },
+  comet: {
+    designation: '2P',
+    perihelionAU: 0.336,
+    aphelionAU: 4.10,
+    lastPerihelion: '22 oct 2023',
+    nextPerihelion: '≈ feb 2027',
+    retrograde: false,
+    tailNote:
+      'Con perihelio DENTRO de la órbita de Mercurio (0,34 UA), Encke hierve a pleno sol en cada vuelta: su cola es corta pero intensa, y alimenta la lluvia de meteoros Táuridas.'
+  },
+  physical: {
+    massKg: '≈ 3 × 10¹³ kg (est.)',
+    densityGcm3: 0.6,
+    gravityMs2: 0.0003,
+    escapeKms: 0.05,
+    meanTempC: '≈ −80 °C (núcleo)'
+  },
+  structure: [
+    { name: 'Corteza de polvo', pct: 10, color: '#8a7a66', note: 'Manto refractario que se agrieta con cada perihelio.' },
+    { name: 'Hielos volátiles', pct: 62, color: '#a8d8ea', note: 'Reserva de agua y gases congelados, ya muy gastada por ~10⁵ perihelios.' },
+    { name: 'Núcleo rocoso', pct: 28, color: '#6b5d52', note: 'Resto primitivo; quizás un fragmento de un cometa mayor roto.' }
+  ],
+  atmosphere: {
+    composition: [
+      { gas: 'H₂O (vapor)', pct: 85 },
+      { gas: 'CO₂', pct: 6 },
+      { gas: 'CO', pct: 4 },
+      { gas: 'Otros', pct: 5 }
+    ],
+    pressure: '≈ 10⁻⁶ bar (coma activa)',
+    tempMean: '≈ −80 °C',
+    notes: 'Es el cometa con más pasos perihélicos observados de la historia: se registra en cada vuelta desde 1786.'
+  },
+  missions: [
+    { name: 'Pierre Méchain', agency: 'Descubrimiento', year: '1786', highlight: 'Lo avista desde París; posteriormente se hallaron apariciones previas desde 1786.' },
+    { name: 'Johann Encke', agency: 'Matemática orbital', year: '1819', highlight: 'Encontró la órbita y predijo el retorno de 1822: segundo cometa periódico confirmado.' }
+  ],
+  summary:
+    'El esprintador del sistema: el período orbital más corto conocido (3,3 años) y récord de perihelios observados. Su órbita quedó sellada por resonancias con Júpiter y Mercurio.'
+};
+
+/** 67P/Churyumov–Gerasimenko — el patito de goma. Perihelio 2021-11-02 (JD 2459521.6), P = 6,44 años. */
+export const CHURYUMOV: CelestialBody = {
+  id: '67p',
+  name: '67P/Churyumov–G.',
+  type: 'comet',
+  color: 0xd8b98a,
+  textureKind: 'ice',
+  radiusKm: 2.0,
+  axialTiltDeg: 0,
+  rotationHours: 12.4,
+  orbital: { a: 3.463, e: 0.641, iDeg: 7.04, OmegaDeg: 50.15, omegaDeg: 12.78, M0Deg: 219.1, periodDays: 2352 },
+  comet: {
+    designation: '67P',
+    perihelionAU: 1.241,
+    aphelionAU: 5.68,
+    lastPerihelion: '2 nov 2021',
+    nextPerihelion: '≈ abr 2028',
+    retrograde: false,
+    tailNote:
+      'Rosetta vio nacer su cola en vivo: al cruzar la “línea de hielo” (~3 UA) el núcleo se enciende y los chorros de gas salen por cuellos y grietas, no de forma uniforme.'
+  },
+  physical: {
+    massKg: '9,98 × 10¹² kg',
+    densityGcm3: 0.533,
+    gravityMs2: 0.0001,
+    escapeKms: 0.001,
+    meanTempC: '≈ −93 °C'
+  },
+  structure: [
+    { name: 'Corteza de polvo y orgánicos', pct: 12, color: '#8a7a66', note: 'Terrazas, acantilados y dunas de polvo en un mundo sin aire.' },
+    { name: 'Hielos de H₂O/CO₂ (porosos)', pct: 63, color: '#a8d8ea', note: 'Densidad 0,53 g/cm³: más de la mitad es vacío. Un copo de nieve cósmico.' },
+    { name: 'Dos lóbulos rocosos', pct: 25, color: '#6b5d52', note: 'Es un “patito de goma”: dos cometas suaves que chocaron a baja velocidad y quedaron pegados.' }
+  ],
+  atmosphere: {
+    composition: [
+      { gas: 'H₂O (vapor)', pct: 83 },
+      { gas: 'CO₂', pct: 7 },
+      { gas: 'O₂ (molecular!)', pct: 4 },
+      { gas: 'Otros', pct: 6 }
+    ],
+    pressure: '≈ 10⁻⁷ bar (coma activa)',
+    tempMean: '≈ −93 °C',
+    winds: 'Chorros a 600 m/s',
+    notes: 'Rosetta detectó O₂ molecular, oxígeno “fósil” del nacimiento del sistema solar: la mitad de la edad del Sol en una coma.'
+  },
+  missions: [
+    { name: 'Churyumov y Gerasimenko', agency: 'Descubrimiento', year: '1969', highlight: 'Hallado en placas fotográficas del observatorio de Alma-Ata (Kazajistán).' },
+    { name: 'Rosetta', agency: 'ESA', year: '2004–2016', highlight: 'Orbitó 2 años, escoltó el perihelio y aterrizó al final sobre el cometa. Primera misión de su tipo.' },
+    { name: 'Philae', agency: 'ESA', year: '2014', highlight: 'Primer aterrizaje de la historia sobre un núcleo cometario; funcionó 60 horas con anclas rotas.' }
+  ],
+  summary:
+    'El patito de goma: dos cometas fundidos en uno, el primero que la humanidad orbitó y donde aterrizó una sonda (Philae, 2014). Sus datos reescribieron el origen del agua terrestre.'
+};
+
+/** 109P/Swift–Tuttle — el padre de las Perseidas. Perihelio 1992-12-12 (JD 2448969.1), P = 133 años. */
+export const SWIFT_TUTTLE: CelestialBody = {
+  id: 'swift-tuttle',
+  name: '109P/Swift–Tuttle',
+  type: 'comet',
+  color: 0xffb37f,
+  textureKind: 'ice',
+  radiusKm: 13,
+  axialTiltDeg: 0,
+  rotationHours: 69.7,
+  orbital: { a: 26.0929, e: 0.9631, iDeg: 113.45, OmegaDeg: 139.38, omegaDeg: 153.0, M0Deg: 19.0, periodDays: 48_690 },
+  comet: {
+    designation: '109P',
+    perihelionAU: 0.962,
+    aphelionAU: 51.22,
+    lastPerihelion: '12 dic 1992',
+    nextPerihelion: '≈ 12 jul 2126',
+    retrograde: true,
+    tailNote:
+      'Cada agosto la Tierra cruza el río de polvo que este cometa dejó en cada vuelta: son las Perseidas. El polvo entra a 59 km/s y se enciende a 80 km de altura.'
+  },
+  physical: {
+    massKg: '≈ 5 × 10¹⁵ kg (est.)',
+    densityGcm3: 0.6,
+    gravityMs2: 0.001,
+    escapeKms: 0.12,
+    meanTempC: '≈ −80 °C'
+  },
+  structure: [
+    { name: 'Corteza refractaria', pct: 8, color: '#8a7a66', note: 'Negra y poco reflectante; oculta el hielo hasta el perihelio.' },
+    { name: 'Hielos de H₂O/CO/CO₂', pct: 64, color: '#a8d8ea', note: 'Con 26 km de núcleo, cada perihelio libera una masa enorme de polvo.' },
+    { name: 'Núcleo rocoso', pct: 28, color: '#6b5d52', note: 'El mayor objeto conocido cuyo órbita cruza la de la Tierra.' }
+  ],
+  atmosphere: {
+    composition: [
+      { gas: 'H₂O (vapor)', pct: 78 },
+      { gas: 'CO', pct: 9 },
+      { gas: 'CO₂', pct: 5 },
+      { gas: 'Otros', pct: 8 }
+    ],
+    pressure: '≈ 10⁻⁵ bar (coma activa)',
+    tempMean: '≈ −80 °C',
+    notes: 'Su tamaño y órbita lo hicieron famoso: los cálculos de 1973 preveían un posible choque en 2126 — datos refinados lo descartaron (pasará a 0,11 UA).'
+  },
+  missions: [
+    { name: 'Swift y Tuttle', agency: 'Descubrimiento', year: '1862', highlight: 'Dos astrónomos independientes lo hallan la misma semana en plena Guerra Civil estadounidense.' },
+    { name: 'Brian Marsden', agency: 'IAU', year: '1973', highlight: 'Recuperó la órbita y confirmó que es el cuerpo padre de las Perseidas.' },
+    { name: 'Perseidas', agency: 'Lluvia de meteoros', year: 'cada agosto', highlight: 'Su polvo milenario pinta el cielo de agosto: hasta 100 meteoros por hora.' }
+  ],
+  summary:
+    'El gigante dormido: 26 km de núcleo cruzando la órbita terrestre cada 133 años, el padre de las Perseidas. Hoy duerme a ~44 UA del Sol; despierta hacia 2126.'
+};
+
+/* ---------------------------------------------------------------------------
  * REGISTROS DERIVADOS
  * ------------------------------------------------------------------------ */
 export const PLANETS: CelestialBody[] = [
@@ -937,8 +1175,10 @@ export const MOONS: CelestialBody[] = [
 
 export const NOTABLE_ASTEROIDS: CelestialBody[] = [CERES, VESTA, PALLAS, HYGIEA];
 
+export const COMETS: CelestialBody[] = [HALLEY, ENCKE, CHURYUMOV, SWIFT_TUTTLE];
+
 export const ALL_BODIES: CelestialBody[] = [
-  SUN, ...PLANETS, ...MOONS, ...NOTABLE_ASTEROIDS
+  SUN, ...PLANETS, ...MOONS, ...NOTABLE_ASTEROIDS, ...COMETS
 ];
 
 export const BODIES_BY_ID: Record<string, CelestialBody> = Object.fromEntries(
@@ -950,7 +1190,8 @@ export const BODY_TYPE_LABEL: Record<BodyType, string> = {
   planet: 'Planeta',
   'dwarf-planet': 'Planeta enano',
   moon: 'Luna',
-  asteroid: 'Asteroide'
+  asteroid: 'Asteroide',
+  comet: 'Cometa'
 };
 
 export const J2000_EPOCH_MS = Date.UTC(2000, 0, 1, 12, 0, 0);

@@ -74,7 +74,7 @@ export class DetailsPanel {
     if (!b) return;
     const typeLabel = BODY_TYPE_LABEL[b.type];
     const ringColor = '#' + b.color.toString(16).padStart(6, '0');
-    const canCut = b.structure.length >= 2 && !b.id.startsWith('belt:');
+    const canCut = b.structure.length >= 2 && !b.id.startsWith('belt:') && b.type !== 'comet';
     const cutOn = simStore.getState().cutawayBodyId === b.id;
 
     this.root.innerHTML = `
@@ -151,6 +151,13 @@ export class DetailsPanel {
       rows.push(['Distancia al padre', b.moonOf.radiusKm.toLocaleString('es-CL') + ' km']);
       rows.push(['Período orbital', this.fmtDays(b.moonOf.periodDays)]);
     }
+    if (b.comet) {
+      rows.push(['Perihelio (q)', b.comet.perihelionAU.toFixed(3) + ' UA']);
+      rows.push(['Afelio (Q)', b.comet.aphelionAU.toFixed(2) + ' UA']);
+      rows.push(['Último perihelio', b.comet.lastPerihelion]);
+      rows.push(['Próximo perihelio', b.comet.nextPerihelion]);
+      if (b.comet.retrograde) rows.push(['Sentido orbital', 'Retrógrado (i > 90°)']);
+    }
     rows.push(['Rotación (día sideral)', this.fmtHours(b.rotationHours)]);
     return `
       <p class="mb-3 text-[12.5px] leading-relaxed text-slate-300">${b.summary}</p>
@@ -164,7 +171,8 @@ export class DetailsPanel {
                </div>`
           )
           .join('')}
-      </dl>`;
+      </dl>
+      ${b.comet ? `<p class="mt-3 rounded-md bg-amber-500/5 p-2 text-[11px] leading-relaxed text-slate-300">${icon(ICONS.info, 'inline w-3 h-3 align-[-2px] mr-1')} ${b.comet.tailNote}</p>` : ''}`;
   }
 
   private structureTab(b: CelestialBody): string {
@@ -194,7 +202,7 @@ export class DetailsPanel {
           )
           .join('')}
       </div>
-      ${b.structure.length >= 2 && !b.id.startsWith('belt:')
+      ${b.structure.length >= 2 && !b.id.startsWith('belt:') && b.type !== 'comet'
         ? `<button class="hud-btn mt-3 w-full" data-cut="1">${icon(ICONS.layers)}&nbsp;Ver corte 3D animado</button>`
         : ''}`;
   }

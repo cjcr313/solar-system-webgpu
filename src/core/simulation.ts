@@ -7,7 +7,7 @@
  */
 import * as THREE from 'three/webgpu';
 import { simStore } from './store';
-import type { ScaleSnapshot } from './scales';
+import { distanceTransform, type ScaleSnapshot } from './scales';
 import { CameraRig } from './cameraRig';
 import { Picker } from './picking';
 import { BodyView } from '../scene/Bodies';
@@ -15,8 +15,10 @@ import { AsteroidBelt } from '../scene/AsteroidBelt';
 import { PlanetOrbitLine } from '../scene/Orbits';
 import { LabelManager } from '../scene/Labels';
 import { CutawayLabels } from '../scene/Cutaway';
+import { CometFX } from '../scene/Comets';
+import { orbitalPosition, type Vec3 } from '../physics/kepler';
 import {
-  SUN, PLANETS, MOONS, NOTABLE_ASTEROIDS,
+  SUN, PLANETS, MOONS, NOTABLE_ASTEROIDS, COMETS,
   type CelestialBody
 } from '../data/celestialData';
 
@@ -30,6 +32,14 @@ export class Simulation {
   readonly bodies = new Map<string, BodyView>();
   readonly belts: AsteroidBelt[] = [];
   private readonly planetOrbitLines = new Map<string, PlanetOrbitLine>();
+  private readonly cometFX = new Map<string, CometFX>();
+  private readonly cometOrbitLines = new Map<string, PlanetOrbitLine>();
+  private readonly vTmpA: Vec3 = { x: 0, y: 0, z: 0 };
+  private readonly vTmpB: Vec3 = { x: 0, y: 0, z: 0 };
+  private readonly vTmpC: Vec3 = { x: 0, y: 0, z: 0 };
+  private readonly sAnti = new THREE.Vector3();
+  private readonly sVel = new THREE.Vector3();
+  private readonly sCam = new THREE.Vector3();
   private readonly renderer: THREE.WebGPURenderer;
   private readonly canvas: HTMLCanvasElement;
   private readonly picker: Picker;
@@ -93,13 +103,38 @@ export class Simulation {
       this.pickables.push(view);
     });
 
+    /* ---------- Cometas (núcleo + coma + colas) ---------- */
+    const COMET_FX_COLORS: Record<string, { colorIon: number; colorDust: number; boost: number }> = {
+      halley: { colorIon: 0x66b8ff, colorDust: 0xffc27a, boost: 1.25 },
+      encke: { colorIon: 0x7fe8d0, colorDust: 0xffbb6e, boost: 0.7 },
+      '67p': { colorIon: 0x9fd0ff, colorDust: 0xffb763, boost: 0.75 },
+      'swift-tuttle': { colorIon: 0x8ab8ff, colorDust: 0xffae5e, boost: 1.6 }
+    };
+    for (const c of COMETS) {
+      const view = new BodyView(c);
+      this.bodies.set(c.id, view);
+      this.scene.add(view.group);
+      this.pickables.push(view);
+      if (c.orbital) {
+        const line = new PlanetOrbitLine(c.orbital, c.color, scale);
+        line.setOpacity(0.2);
+        this.cometOrbitLines.set(c.id, line);
+        this.scene.add(line.line);
+      }
+      const fxConf = COMET_FX_COLORS[c.id] ?? { colorIon: 0x7fc9ff, colorDust: 0xffd9a0, boost: 1 };
+      const fx = new CometFX(fxConf);
+      fx.attach(view.group);
+      this.cometFX.set(c.id, fx);
+    }
+
     /* ---------- Etiquetas HTML ---------- */
     for (const b of this.bodies.values()) {
       this.labels.add(
         b.id,
         b.data.name,
         b.data.type === 'moon',
-        (out) => b.getWorldPos(out)
+        (out) => b.getWorldPos(out),
+        b.data.type === 'comet'
       );
     }
 
@@ -176,6 +211,10 @@ export class Simulation {
       }
       if (state.showPlanetOrbits !== prev.showPlanetOrbits) {
         for (const l of this.planetOrbitLines.values()) l.line.visible = state.showPlanetOrbits;
+        this.refreshCometVisibility(state);
+      }
+      if (state.showComets !== prev.showComets) {
+        this.refreshCometVisibility(state);
       }
       if (state.showMoonOrbits !== prev.showMoonOrbits) {
         for (const b of this.bodies.values()) {
@@ -304,9 +343,15 @@ export class Simulation {
     if (!id || id.startsWith(BELT_PSEUDO_PREFIX)) return;
     const b = this.bodies.get(id);
     if (!b) return;
+    // Cometas: el núcleo real (2–26 km) es sub-píxel; se encuadra la región
+    // de coma + colas para que la cámara no quede pegada al puntito.
+    const st = simStore.getState();
+    const cometFloor = (st.distanceMode === 'real' ? 3.0 : 0.8) * st.distanceScale;
+    const isComet = b.data.type === 'comet';
+    const radius = isComet ? Math.max(b.visualRadius, cometFloor) : b.visualRadius;
     this.rig.focusOn(
-      { getPos: (o) => b.getWorldPos(o), getRadius: () => b.visualRadius },
-      b.data.type === 'star' ? 9 : 4.5
+      { getPos: (o) => b.getWorldPos(o), getRadius: () => radius },
+      b.data.type === 'star' ? 9 : isComet ? 5.5 : 4.5
     );
     simStore.getState().focus(id);
   }
@@ -334,6 +379,10 @@ export class Simulation {
       if (body && (body.data.type === 'asteroid' || body.data.type === 'dwarf-planet')) {
         line.setOpacity(0.16);
       }
+    }
+    for (const line of this.cometOrbitLines.values()) {
+      line.rebuild(s);
+      line.setOpacity(0.2);
     }
     for (const b of this.belts) b.applyScale(s);
   }
@@ -376,6 +425,7 @@ export class Simulation {
     const simDays = simStore.getState().simDays;
     this.updateBodies(simDays, scale);
     for (const b of this.bodies.values()) b.updateCutaway(dt);
+    this.updateCometFX(simDays, scale, t);
 
     for (const b of this.belts) {
       if (b.mesh.visible) b.tick(this.renderer, simDays);
@@ -402,10 +452,66 @@ export class Simulation {
     }
   };
 
+  /** Visibilidad agrupada de cometas: cuerpos + FX + etiquetas + órbitas. */
+  private refreshCometVisibility(state: { showComets: boolean; showPlanetOrbits: boolean }) {
+    for (const c of COMETS) {
+      const view = this.bodies.get(c.id);
+      if (view) view.group.visible = state.showComets;
+      const fx = this.cometFX.get(c.id);
+      if (fx) fx.setVisible(state.showComets);
+      const line = this.cometOrbitLines.get(c.id);
+      if (line) line.line.visible = state.showComets && state.showPlanetOrbits;
+    }
+    this.labels.setCometsVisible(state.showComets);
+  }
+
+  /**
+   * Colas cometarias por frame: dirección anti-solar (Sol en el origen),
+   * velocidad escena por diferencia finita de la MISMA transformación
+   * kepleriana, y r físico en UA para la actividad de sublimación.
+   */
+  private updateCometFX(simDays: number, s: ScaleSnapshot, timeSec: number) {
+    const dtDays = 0.5;
+    for (const c of COMETS) {
+      const el = c.orbital;
+      if (!el) continue;
+      const fx = this.cometFX.get(c.id);
+      const view = this.bodies.get(c.id);
+      if (!fx || !view || !view.group.visible) continue;
+
+      const dT = (rAU: number) => distanceTransform(rAU, s);
+      orbitalPosition(el, simDays - dtDays, this.vTmpA, { distanceTransform: dT });
+      orbitalPosition(el, simDays + dtDays, this.vTmpB, { distanceTransform: dT });
+      const velX = this.vTmpB.x - this.vTmpA.x;
+      const velY = this.vTmpB.y - this.vTmpA.y;
+      const velZ = this.vTmpB.z - this.vTmpA.z;
+
+      // posición física real (UA) para la actividad
+      orbitalPosition(el, simDays, this.vTmpC);
+      const rAU = Math.hypot(this.vTmpC.x, this.vTmpC.y, this.vTmpC.z);
+
+      // anti-solar: Sol está en el origen de escena
+      const head = view.group.position;
+      const anti = this.sAnti.set(head.x, head.y, head.z);
+      if (anti.lengthSq() > 1e-12) anti.normalize();
+      else anti.set(0, 0, 1);
+
+      const vel = this.sVel.set(velX, velY, velZ);
+      if (vel.lengthSq() > 1e-12) vel.normalize();
+      else vel.set(anti.x, anti.y, anti.z).multiplyScalar(-1);
+
+      // cámara relativa al cometa (espacio local del grupo, ejes = mundo)
+      const camRel = this.sCam.copy(this.rig.camera.position).sub(head);
+      fx.update(camRel, anti, vel, rAU, s, timeSec);
+    }
+  }
+
   dispose() {
     this.unsubscribe();
     this.cutawayLabels.clear();
     for (const l of this.planetOrbitLines.values()) l.dispose();
+    for (const l of this.cometOrbitLines.values()) l.dispose();
+    for (const fx of this.cometFX.values()) fx.dispose();
   }
 
   /* ---------------- Hint “Ver interior” ---------------- */
