@@ -33,6 +33,7 @@ export interface SimState {
   showPlanetOrbits: boolean;
   showMoonOrbits: boolean;
   showBelts: boolean;
+  showComets: boolean;
   showLabels: boolean;
 
   /** Panel izquierdo de controles (colapsable, se recuerda entre sesiones). */
@@ -58,7 +59,7 @@ export interface SimActions {
   setDistanceScale(v: number): void;
   setSizeScale(v: number): void;
   setSimDays(d: number): void;
-  toggle(key: 'showPlanetOrbits' | 'showMoonOrbits' | 'showBelts' | 'showLabels'): void;
+  toggle(key: 'showPlanetOrbits' | 'showMoonOrbits' | 'showBelts' | 'showComets' | 'showLabels'): void;
   toggleLeftPanel(): void;
   select(id: string | null): void;
   focus(id: string | null): void;
@@ -99,6 +100,7 @@ export const simStore = createStore<SimStore>()((set) => ({
   showPlanetOrbits: true,
   showMoonOrbits: true,
   showBelts: true,
+  showComets: true,
   showLabels: true,
 
   leftPanelOpen: readLeftPanelPref(),

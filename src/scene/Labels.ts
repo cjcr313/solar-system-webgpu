@@ -12,6 +12,7 @@ export class LabelManager {
     el: HTMLDivElement;
     getWorldPos: (out: THREE.Vector3) => THREE.Vector3;
     isMoon: boolean;
+    isComet: boolean;
     id: string;
   }[] = [];
   private tmp = new THREE.Vector3();
@@ -21,10 +22,16 @@ export class LabelManager {
     this.root = document.getElementById('labels-root')!;
   }
 
-  add(id: string, name: string, isMoon: boolean, getWorldPos: (out: THREE.Vector3) => THREE.Vector3) {
+  add(
+    id: string,
+    name: string,
+    isMoon: boolean,
+    getWorldPos: (out: THREE.Vector3) => THREE.Vector3,
+    isComet = false
+  ) {
     const el = document.createElement('div');
-    el.className = `body-label${isMoon ? ' moon-label' : ''}`;
-    el.textContent = name;
+    el.className = `body-label${isMoon ? ' moon-label' : ''}${isComet ? ' comet-label' : ''}`;
+    el.textContent = isComet ? `☄️ ${name}` : name;
     el.style.display = 'none';
     el.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -33,7 +40,7 @@ export class LabelManager {
       );
     });
     this.root.appendChild(el);
-    this.items.push({ el, getWorldPos, isMoon, id });
+    this.items.push({ el, getWorldPos, isMoon, isComet, id });
   }
 
   setSelected(id: string | null) {
@@ -43,6 +50,12 @@ export class LabelManager {
   setMoonsVisible(v: boolean) {
     for (const it of this.items) {
       if (it.isMoon) it.el.style.visibility = v ? 'visible' : 'hidden';
+    }
+  }
+
+  setCometsVisible(v: boolean) {
+    for (const it of this.items) {
+      if (it.isComet) it.el.style.visibility = v ? 'visible' : 'hidden';
     }
   }
 

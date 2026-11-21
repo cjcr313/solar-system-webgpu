@@ -163,6 +163,11 @@ input[type='range']::-moz-range-thumb {
   background: rgb(34 211 238 / 0.12);
   box-shadow: inset 0 0 0 1px rgb(34 211 238 / 0.4);
 }
+.body-label.comet-label {
+  color: #9fd8ff;
+  border-color: rgba(127, 201, 255, 0.35);
+}
+
 .body-label.moon-label {
   font-size: 9.5px;
   color: #9db4d8;

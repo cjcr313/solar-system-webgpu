@@ -32,6 +32,11 @@ Simulación 3D de alto rendimiento del Sistema Solar con **rigor astronómico** 
 - **Texturas 100% procedurales** (canvas 2D + fBm): continentes terrestres, bandas jovianas con Gran Mancha Roja, cráteres mercurianos/lunares… cero assets binarios en el repo.
 - Órbitas elípticas trazadas con la misma transformación de escala que las posiciones (siempre coinciden con el cuerpo), conmutables por tipo.
 
+### Cometas con colas dinámicas
+- **4 cometas reales**: 1P/Halley, 2P/Encke, 67P/Churyumov–Gerasimenko y 109P/Swift–Tuttle — elementos keplerianos J2000 (M0 derivado de la fecha de perihelio), órbitas hiperelípticas (e → 0,967) y retrógradas donde corresponde (Halley: 162°).
+- **Dos colas con física visual**: la **iónica** (azul-cian) apunta exactamente anti-solar — viento solar barriendo iones; la de **polvo** (dorada) queda desviada y curvada contra la trayectoria por inercia. Ambas crecen al acercarse al Sol (sublimación, línea de hielo ~4,5 UA) y respiran; lejos del perihelio el cometa es un punto tenue.
+- Longitudes convertidas con la misma transformación de distancias que los planetas (coherentes en modo 1:1 y didáctico), y panel científico con perihelios, coma, estructura y misiones (Giotto, Rosetta/Philae, la Armada de Halley…).
+
 ### Interacción y HUD científico
 - Cámara orbital libre (rotación/zoom/paneo con amortiguación) + **focus/lock cinematográfico** (lerp) sobre cualquier cuerpo, siguiéndolo en su traslación.
 - Panel de detalles con 5 pestañas por cuerpo: **Resumen, Estructura interna** (barras por capas), **Atmósfera** (composición química %, presión, vientos), **Propiedades físicas** y **Exploración** (misiones históricas).

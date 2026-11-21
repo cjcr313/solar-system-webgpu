@@ -38,8 +38,12 @@ async function boot(): Promise<void> {
   setTimeout(() => loading?.remove(), 450);
 
   renderer.setAnimationLoop(sim.frame);
+
+  // Hook mínimo para pruebas E2E (fecha simulada en días desde J2000)
+  (window as unknown as { __solarSetDate: (d: number) => void }).__solarSetDate = (d: number) =>
+    simStore.getState().setSimDays(d);
   console.info(
-    `[solar-system] Backend: ${backend.toUpperCase()} · asteroide count: 105 000 · listo ✅`
+    `[solar-system] Backend: ${backend.toUpperCase()} · asteroides: 105 000 · cometas: 4 · listo ✅`
   );
 }
 
