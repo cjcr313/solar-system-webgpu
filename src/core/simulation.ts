@@ -236,6 +236,15 @@ export class Simulation {
       if (state.showLabels !== prev.showLabels) {
         this.labels.visible = state.showLabels;
       }
+      // El corte interior es MODAL a la inspección: al seleccionar otro
+      // cuerpo (o cerrar el panel), el corte del cuerpo anterior se cierra
+      // solo — antes quedaba "pegado" abierto para siempre.
+      if (state.selectedId !== prev.selectedId) {
+        const cut = simStore.getState().cutawayBodyId;
+        if (cut && cut !== state.selectedId) {
+          simStore.getState().setCutaway(null);
+        }
+      }
       if (state.selectedId !== prev.selectedId) this.labels.setSelected(state.selectedId);
       if (state.cutawayBodyId !== prev.cutawayBodyId) {
         for (const [id, b] of this.bodies) b.setCutaway(state.cutawayBodyId === id);
@@ -337,7 +346,10 @@ export class Simulation {
   }
 
   private onDeselect() {
-    // clic al vacío: mantiene la selección (para no perder el panel por accidente)
+    // Clic al vacío: mantiene la selección (para no perder el panel por
+    // accidente), pero cierra el corte interior si estaba abierto.
+    const st = simStore.getState();
+    if (st.cutawayBodyId) st.setCutaway(null);
   }
 
   /** Cuerpo actualmente seleccionado (real o pseudo del cinturón). */

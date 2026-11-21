@@ -4,6 +4,15 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
+## [1.5.2] — 2026-11-21
+
+### Fixed
+- **El corte interior ya no queda "pegado" abierto**: ahora es modal a la
+  inspección — se cierra solo al seleccionar otro cuerpo (chip, etiqueta o
+  clic), al cerrar el panel de detalles (✕) y al hacer clic al vacío.  Re-seleccionar el mismo cuerpo lo mantiene abierto (comportamiento esperado).
+  Antes, el planeta o el Sol quedaban abiertos indefinidamente aunque
+  miraras otra cosa.
+
 ## [1.5.1] — 2026-11-21
 
 ### Fixed
