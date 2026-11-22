@@ -12,8 +12,8 @@
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪐</text></svg>"
     />
     <title>Sistema Solar · WebGPU</title>
-    <script type="module" crossorigin src="/solar-system-webgpu/assets/index-CbPnqLE6.js"></script>
-    <link rel="stylesheet" crossorigin href="/solar-system-webgpu/assets/index-BHaVbd97.css">
+    <script type="module" crossorigin src="/solar-system-webgpu/assets/index-BAE39NuN.js"></script>
+    <link rel="stylesheet" crossorigin href="/solar-system-webgpu/assets/index-C2hm7hJM.css">
   </head>
   <body>
     <canvas id="scene"></canvas>
@@ -34,10 +34,35 @@
       <p id="loading-msg" class="font-mono text-sm tracking-widest text-slate-400">
         INICIALIZANDO WEBGPU…
       </p>
+      <div id="loading-fallback" class="hidden max-w-sm flex-col items-center gap-2 text-center">
+        <p class="text-xs text-slate-400">Si la carga tarda demasiado (caché de versión anterior), prueba recargar.</p>
+        <button
+          type="button"
+          onclick="location.replace(location.pathname + '?v=' + Date.now())"
+          class="cursor-pointer rounded-md border border-cyan-400/60 bg-cyan-500/15 px-3 py-1.5 font-mono text-xs text-cyan-200 hover:bg-cyan-500/25"
+        >
+          Recargar versión más reciente
+        </button>
+      </div>
       <noscript>
         <p class="text-red-400">Esta simulación requiere JavaScript habilitado.</p>
       </noscript>
     </div>
 
+    <script>
+      (function () {
+        function showReload() {
+          var fb = document.getElementById('loading-fallback');
+          if (fb && document.getElementById('loading')) {
+            fb.classList.remove('hidden');
+            fb.classList.add('flex');
+          }
+        }
+        window.addEventListener('error', function (e) {
+          if (e && e.target && e.target.tagName === 'SCRIPT') showReload();
+        }, true);
+        setTimeout(showReload, 12000);
+      })();
+    </script>
   </body>
 </html>
