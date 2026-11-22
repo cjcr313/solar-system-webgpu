@@ -76,6 +76,7 @@ export class AsteroidBelt implements PickableBelt {
   private pSize: Float32Array;
   private readonly cfg: BeltConfig;
   private scale: ScaleSnapshot;
+  private readonly tmpPos = new Float32Array(3);
 
   /** Callback opcional: instancia → id de cuerpo destacado. */
   notableForInstance: ((i: number) => string | null) | null = null;
@@ -246,6 +247,7 @@ export class AsteroidBelt implements PickableBelt {
   /* ---------------- Picking (CPU, solo en clic) ---------------- */
 
   raycast(ray: THREE.Ray): { instanceId: number; distAlongRay: number } | null {
+    if (!this.mesh.visible) return null;
     const s = this.scale;
     const mode = s.mode === 'didactic' ? 1 : 0;
     const o = ray.origin;
@@ -275,7 +277,7 @@ export class AsteroidBelt implements PickableBelt {
   }
 
   /** Misma matemática del compute (JS) para una instancia. */
-  private instancePosition(i: number, mode: number, distScale: number): number[] | null {
+  private instancePosition(i: number, mode: number, distScale: number): Float32Array | null {
     const a = this.pA[i];
     const e = this.pE[i];
     const n = GAUSS_K * Math.pow(a, -1.5);
@@ -300,11 +302,14 @@ export class AsteroidBelt implements PickableBelt {
     const x = rDisp * (cosO * cosn - sinO * sinn * cosi);
     const y = rDisp * (sinO * cosn + cosO * sinn * cosi);
     const z = rDisp * sinn * sini;
-    return [x, z, -y]; // Y-up
+    this.tmpPos[0] = x;
+    this.tmpPos[1] = z;
+    this.tmpPos[2] = -y;
+    return this.tmpPos; // Y-up
   }
 
   bodyIdForInstance(instanceId: number): string | null {
-    return this.notableForInstance ? this.notableForInstance(instanceId) : null;
+    return this.notableForInstance?.(instanceId) ?? `${BELT_ID_PREFIX}${this.name}:${instanceId}`;
   }
 
   /**

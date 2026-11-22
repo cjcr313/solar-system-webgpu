@@ -109,6 +109,10 @@ export interface CelestialBody {
     | 'uranus'
     | 'neptune'
     | 'pluto'
+    | 'io'
+    | 'ganymede'
+    | 'callisto'
+    | 'titan'
     | 'ice'
     | 'rock';
   radiusKm: number;
@@ -151,9 +155,9 @@ export const SUN: CelestialBody = {
     meanTempC: '5 505 °C (fotosfera) · 15 M °C (núcleo)'
   },
   structure: [
-    { name: 'Núcleo (fusión)', pct: 34, color: '#fff7d6', note: 'Fusión H→He a 15,7 M K; produce toda la energía solar.' },
-    { name: 'Zona radiativa', pct: 48, color: '#ffd166', note: 'La energía tarda ~170 000 años en cruzarla por radiación.' },
-    { name: 'Zona convectiva', pct: 17, color: '#ff9f43', note: 'Plasma asciende en celdas convectivas (~30 % del radio externo).' },
+    { name: 'Núcleo (fusión)', pct: 25, color: '#fff7d6', note: 'Fusión H→He a 15,7 M K (~25 % del radio); produce toda la energía solar.' },
+    { name: 'Zona radiativa', pct: 45, color: '#ffd166', note: 'La energía tarda ~170 000 años en cruzarla por radiación.' },
+    { name: 'Zona convectiva', pct: 29, color: '#ff9f43', note: 'Plasma asciende en celdas convectivas (~30 % del radio externo).' },
     { name: 'Fotosfera / cromosfera', pct: 1, color: '#ff6b35', note: 'Superficie visible (~5 500 °C) y capa rosada de 2 500 km.' }
   ],
   atmosphere: {
@@ -165,9 +169,9 @@ export const SUN: CelestialBody = {
     ],
     pressure: '—',
     tempMean: '5 505 °C',
-    tempRange: '−2 730 a 15 000 000 °C',
+    tempRange: '3 700 a 15 000 000 °C',
     winds: 'Viento solar: 400–800 km/s',
-    notes: 'Corona a 1–3 M K; ciclo de actividad magnética de ~11 años.'
+    notes: 'Corona a 1–3 M K; ciclo magnético de ~11 años. Composición expresada en % por masa.'
   },
   missions: [
     { name: 'SOHO', agency: 'ESA/NASA', year: '1995–', highlight: 'Observatorio solar permanente; alertas de CME.' },
@@ -200,9 +204,9 @@ export const MERCURY: CelestialBody = {
   ],
   atmosphere: {
     composition: [
-      { gas: 'Oxígeno (O₂)', pct: 42 },
+      { gas: 'Oxígeno (O)', pct: 42 },
       { gas: 'Sodio (Na)', pct: 29 },
-      { gas: 'Hidrógeno (H₂)', pct: 22 },
+      { gas: 'Hidrógeno (H)', pct: 22 },
       { gas: 'Helio (He)', pct: 6 }
     ],
     pressure: '< 10⁻¹⁴ bar (exosfera)',
@@ -252,10 +256,10 @@ export const VENUS: CelestialBody = {
     notes: 'Efecto invernadero desbocado: la presión superficial equivale a 900 m bajo el mar. Llueve ácido sulfúrico que se evapora antes de tocar suelo.'
   },
   missions: [
-    { name: 'Venera 7', agency: 'URSS', year: '1970', highlight: 'Primer aterrizaje exitoto en otro planeta.' },
+    { name: 'Venera 7', agency: 'URSS', year: '1970', highlight: 'Primer aterrizaje exitoso en otro planeta.' },
     { name: 'Magellan', agency: 'NASA', year: '1990–94', highlight: 'Radar que mapeó el 98 % de la superficie.' },
     { name: 'Venus Express', agency: 'ESA', year: '2006–14', highlight: 'Estudió la superrotación atmosférica y el viento solar.' },
-    { name: 'Akatsuki', agency: 'JAXA', year: '2015–', highlight: 'Detectó ondas gravitacionales gigantes en la atmósfera.' }
+    { name: 'Akatsuki', agency: 'JAXA', year: '2015–2024', highlight: 'Detectó ondas gravitacionales gigantes en la atmósfera (contacto perdido en 2024).' }
   ],
   summary:
     'El gemelo infernal de la Tierra: un invernadero fuera de control a 464 °C constantes. Gira al revés y tan lento que su día dura más que su año.'
@@ -333,7 +337,7 @@ export const MARS: CelestialBody = {
     pressureBar: 0.0063,
     tempMean: '−63 °C',
     tempRange: '−143 a 35 °C',
-    winds: '10–30 km/s/h → hasta 400 km/h en tormentas globales de polvo',
+    winds: '10–30 km/h (hasta ~120 km/h en tormentas de polvo)',
     notes: 'Atmósfera 100 veces más tenue que la terrestre. Casquetes polares de CO₂ y H₂O; el monte Olimpo mide 22 km de altura.'
   },
   missions: [
@@ -361,12 +365,12 @@ export const JUPITER: CelestialBody = {
   structure: [
     { name: 'Núcleo difuso (roca/hielo)', pct: 4, color: '#c9956b', note: '“Diluido”: 10–20 M⊕ disueltas, sin superficie nítida.' },
     { name: 'Hidrógeno metálico líquido', pct: 76, color: '#a06b3f', note: 'Conductor: genera un campo magnético 20 000 veces el terrestre.' },
-    { name: 'Envoltura H₂/He molecular', pct: 20, color: '#d8b98a', note: 'Nubes de amoníaco en bandas chorradas por vientos de 600 km/h.' }
+    { name: 'Envoltura H₂/He molecular', pct: 20, color: '#d8b98a', note: 'Nubes de amoníaco en bandas arrastradas por corrientes en chorro de 600 km/h.' }
   ],
   atmosphere: {
     composition: [
-      { gas: 'Hidrógeno (H₂)', pct: 89.8 },
-      { gas: 'Helio (He)', pct: 10.2 },
+      { gas: 'Hidrógeno (H₂)', pct: 89.6 },
+      { gas: 'Helio (He)', pct: 10.1 },
       { gas: 'Metano (CH₄) + otros', pct: 0.3 }
     ],
     pressure: '> 1 000 bar en profundidad',
@@ -379,8 +383,8 @@ export const JUPITER: CelestialBody = {
     { name: 'Pioneer 10 / 11', agency: 'NASA', year: '1973–74', highlight: 'Primeros sobrevuelos de Júpiter.' },
     { name: 'Voyager 1 / 2', agency: 'NASA', year: '1979', highlight: 'Descubrieron los anillos y el vulcanismo de Ío.' },
     { name: 'Galileo', agency: 'NASA', year: '1995–2003', highlight: 'Primer orbitador; sonda dentro de la atmósfera; océano de Europa.' },
-    { name: 'Juno', agency: 'NASA', year: '2016–', highlight: 'Reveló la estructura interna y los ciclotes polares geométricos.' },
-    { name: 'Europa Clipper / JUICE', agency: 'NASA / ESA', year: '2023–30', highlight: 'Misiones en camino a las lunas oceánicas.' }
+    { name: 'Juno', agency: 'NASA', year: '2016–', highlight: 'Reveló la estructura interna y los ciclones polares geométricos.' },
+    { name: 'Europa Clipper / JUICE', agency: 'NASA / ESA', year: '2023–', highlight: 'Misiones en camino a las lunas oceánicas (llegada en 2030–2031).' }
   ],
   summary:
     'El gigante que gobierna el sistema: 2,5 veces la masa de todos los demás planetas juntos. Un mundo de tormentas sin superficie donde cabrían 1 300 Tierras.'
@@ -451,7 +455,7 @@ export const URANUS: CelestialBody = {
     tempMean: '−195 °C',
     tempRange: '−224 a −160 °C',
     winds: '900 km/h (retrógrados, en el ecuador)',
-    notes: 'El planeta más frío del Sistema Solar y el único que rueda “de lado”: su eje está volcado 98°. 13 anillos oscuros y 28 lunas con nombres shakespearianos.'
+    notes: 'Temperatura mínima récord del Sistema Solar (−224 °C) y el único que rueda “de lado”: su eje está volcado 98°. 13 anillos oscuros y 28 lunas con nombres shakespearianos.'
   },
   missions: [
     { name: 'Voyager 2', agency: 'NASA', year: '1986', highlight: 'Única visita: descubrió 10 lunas y 2 anillos nuevos.' },
@@ -459,7 +463,7 @@ export const URANUS: CelestialBody = {
     { name: 'Uranus Orbiter and Probe', agency: 'NASA (propuesta)', year: '~2035', highlight: 'Misión insignia prioritaria del Decadal Survey 2023–2032.' }
   ],
   summary:
-    'El gigante volcado: un mundo cian que gira practically acostado, probablemente por un impacto colosal. Sus estaciones duran 21 años cada una.'
+    'El gigante volcado: un mundo cian que gira prácticamente acostado, probablemente por un impacto colosal. Sus estaciones duran 21 años cada una.'
 };
 
 export const NEPTUNE: CelestialBody = {
@@ -482,8 +486,8 @@ export const NEPTUNE: CelestialBody = {
   ],
   atmosphere: {
     composition: [
-      { gas: 'Hidrógeno (H₂)', pct: 80 },
-      { gas: 'Helio (He)', pct: 19 },
+      { gas: 'Hidrógeno (H₂)', pct: 80.0 },
+      { gas: 'Helio (He)', pct: 18.5 },
       { gas: 'Metano (CH₄)', pct: 1.5 }
     ],
     pressure: '> 100 bar en profundidad',
@@ -514,7 +518,7 @@ export const PLUTO: CelestialBody = {
   structure: [
     { name: 'Núcleo rocoso', pct: 65, color: '#a89078', note: 'Radio ~850 km; diferenciado.' },
     { name: 'Manto de hielo de agua', pct: 30, color: '#c9b8a3', note: 'Con posible océano líquido subsuperficial alimentado por radiactividad.' },
-    { name: 'Corteza N₂/CH₄', pct: 5, color: '#e0d4c4', note: 'Glaciares de nitrógeno que “relanan” la superficie (Sputnik Planitia).' }
+    { name: 'Corteza N₂/CH₄', pct: 5, color: '#e0d4c4', note: 'Glaciares de nitrógeno que renuevan la superficie (Sputnik Planitia).' }
   ],
   atmosphere: {
     composition: [
@@ -530,7 +534,7 @@ export const PLUTO: CelestialBody = {
     notes: 'Atmósfera estacional: se congela y colapsa cuando se aleja del Sol. Comparte órbita resonante 2:3 con Neptuno.'
   },
   missions: [
-    { name: 'New Horizons', agency: 'NASA', year: '2015', highlight: 'Sobrevuelo histórico: montañas de hielo, glaciar Sputnik Planitia y hazas azules.' },
+    { name: 'New Horizons', agency: 'NASA', year: '2015', highlight: 'Sobrevuelo histórico: montañas de hielo, glaciar Sputnik Planitia y brumas azules.' },
     { name: 'Descubrimiento', agency: 'Lowell Obs.', year: '1930', highlight: 'Clyde Tombaugh; degradado a planeta enano en 2006.' }
   ],
   summary:
@@ -553,8 +557,8 @@ export const MOON: CelestialBody = {
   physical: { massKg: '7,342 × 10²² kg', densityGcm3: 3.34, gravityMs2: 1.62, escapeKms: 2.38, meanTempC: '−20 °C' },
   structure: [
     { name: 'Núcleo Fe pequeño', pct: 2, color: '#d4c5a9', note: 'Radio ~330 km; casi extinto magnéticamente.' },
-    { name: 'Manto', pct: 68, color: '#a8a29a', note: 'Rígido; “lunarmotores” de marea los sacale ocasionalmente.' },
-    { name: 'Corteza anortosítica', pct: 30, color: '#cfc9c1', note: 'Grosa 34–43 km: los “mares” son lava solidificada.' }
+    { name: 'Manto', pct: 68, color: '#a8a29a', note: 'Rígido; “lunamotos” (sismos lunares) de marea lo sacuden ocasionalmente.' },
+    { name: 'Corteza anortosítica', pct: 30, color: '#cfc9c1', note: 'Grosor de 34–43 km: los “mares” son lava solidificada.' }
   ],
   atmosphere: {
     composition: [
@@ -571,7 +575,7 @@ export const MOON: CelestialBody = {
     { name: 'Luna 2', agency: 'URSS', year: '1959', highlight: 'Primer objeto humano en tocar otro mundo.' },
     { name: 'Apollo 11–17', agency: 'NASA', year: '1969–72', highlight: '12 humanos caminaron sobre ella; 382 kg de muestras.' },
     { name: 'Chang’e 4 / 5', agency: 'CNSA', year: '2019–20', highlight: 'Primer aterrizaje en la cara oculta; retorno de muestras jóvenes.' },
-    { name: 'Artemis', agency: 'NASA', year: '2025–', highlight: 'Retorno humano planeado al polo sur lunar.' }
+    { name: 'Artemis', agency: 'NASA', year: '2025–', highlight: 'Retorno humano planeado al polo sur lunar (Artemis III ≥ 2027).' }
   ],
   summary:
     'Nuestra compañera única: la quinta luna más grande del Sistema Solar, nacida de un choque planetario. Sus mareas hicieron posible la vida compleja.'
@@ -582,7 +586,7 @@ export const IO: CelestialBody = {
   name: 'Ío',
   type: 'moon',
   color: 0xe8d06a,
-  textureKind: 'rock',
+  textureKind: 'io',
   radiusKm: 1821.6,
   axialTiltDeg: 0,
   rotationHours: 42.46,
@@ -607,7 +611,7 @@ export const IO: CelestialBody = {
   missions: [
     { name: 'Voyager 1', agency: 'NASA', year: '1979', highlight: 'Descubrimiento del vulcanismo activo: primera vez fuera de la Tierra.' },
     { name: 'Galileo', agency: 'NASA', year: '1995–2003', highlight: 'Monitoreó 100+ erupciones y montañas de 17 km.' },
-    { name: 'Juno', agency: 'NASA', year: '2023–24', highlight: 'Sobrevuelos cercanos con imágennes del hemisferio sur.' }
+    { name: 'Juno', agency: 'NASA', year: '2023–24', highlight: 'Sobrevuelos cercanos con imágenes del hemisferio sur.' }
   ],
   summary:
     'La luna de fuego: un mundo amarillo-azufre machacado por las mareas jovianas hasta fundirse. El objeto más volcánico que existe.'
@@ -644,7 +648,7 @@ export const EUROPA: CelestialBody = {
   missions: [
     { name: 'Galileo', agency: 'NASA', year: '1995–2003', highlight: 'Evidencia magnética del océano salado subsuperficial.' },
     { name: 'Hubble', agency: 'NASA/ESA', year: '2013–16', highlight: 'Posibles plumas de agua en el limbo sur.' },
-    { name: 'Europa Clipper', agency: 'NASA', year: '2024–2030', highlight: '~50 sobrevuelos rasantes para caracterizar el océano y la habitabilidad.' },
+    { name: 'Europa Clipper', agency: 'NASA', year: '2024–', highlight: '~50 sobrevuelos rasantes para caracterizar el océano y la habitabilidad (llegada en 2030).' },
     { name: 'JUICE', agency: 'ESA', year: '2023–', highlight: 'Incluye 2 sobrevuelos de Europa dentro de su gira joviana.' }
   ],
   summary:
@@ -656,7 +660,7 @@ export const GANYMEDE: CelestialBody = {
   name: 'Ganímedes',
   type: 'moon',
   color: 0xa89f94,
-  textureKind: 'moon',
+  textureKind: 'ganymede',
   radiusKm: 2634.1,
   axialTiltDeg: 0.2,
   rotationHours: 171.71,
@@ -692,7 +696,7 @@ export const CALLISTO: CelestialBody = {
   name: 'Calisto',
   type: 'moon',
   color: 0x8a7f72,
-  textureKind: 'moon',
+  textureKind: 'callisto',
   radiusKm: 2410.3,
   axialTiltDeg: 0,
   rotationHours: 400.54,
@@ -728,7 +732,7 @@ export const TITAN: CelestialBody = {
   name: 'Titán',
   type: 'moon',
   color: 0xd8a44c,
-  textureKind: 'venus',
+  textureKind: 'titan',
   radiusKm: 2574.7,
   axialTiltDeg: 0.3,
   rotationHours: 382.69,
@@ -759,7 +763,7 @@ export const TITAN: CelestialBody = {
     { name: 'Voyager 1', agency: 'NASA', year: '1980', highlight: 'Reveló la bruma opaca de nitrógeno + metano.' },
     { name: 'Cassini', agency: 'NASA/ESA/ASI', year: '2004–17', highlight: 'Radar que mapeó lagos y mares de hidrocarburos.' },
     { name: 'Huygens', agency: 'ESA', year: '2005', highlight: 'Primer (y único) aterrizaje en una luna del sistema exterior.' },
-    { name: 'Dragonfly', agency: 'NASA', year: '2028 (prev.)', highlight: 'Dron nuclear que volará entre dunas de Titán.' }
+    { name: 'Dragonfly', agency: 'NASA', year: '2028 (lanz.)', highlight: 'Dron nuclear que volará entre dunas de Titán (llegada prevista ~2034).' }
   ],
   summary:
     'La luna con atmósfera: un mundo de lagos de metano, dunas orgánicas y un ciclo “hidrológico” de hidrocarburos. El laboratorio prebiótico más fascinante del Sistema Solar.'
@@ -777,7 +781,7 @@ export const ENCELADUS: CelestialBody = {
   moonOf: { parentId: 'saturn', radiusKm: 237948, periodDays: 1.370, e: 0.0047, iDeg: 0.02 },
   physical: { massKg: '1,08 × 10²⁰ kg', densityGcm3: 1.61, gravityMs2: 0.113, escapeKms: 0.24, meanTempC: '−198 °C' },
   structure: [
-    { name: 'Núcleo rocoso', pct: 60, color: '#a8b8c4', note: 'Porouso, con posible actividad hidrotermal.' },
+    { name: 'Núcleo rocoso', pct: 60, color: '#a8b8c4', note: 'Poroso, con posible actividad hidrotermal.' },
     { name: 'Océano global', pct: 20, color: '#4d94d8', note: 'Bajo todo el polo sur; agua salada con sílice y H₂ (¡comida para microbios!).' },
     { name: 'Corteza de hielo', pct: 20, color: '#f0f8fa', note: 'Solo 20–25 km; el albedo más alto del Sistema Solar.' }
   ],
@@ -805,7 +809,7 @@ export const MIMAS: CelestialBody = {
   name: 'Mimas',
   type: 'moon',
   color: 0xc4bcb2,
-  textureKind: 'moon',
+  textureKind: 'ice',
   radiusKm: 198.2,
   axialTiltDeg: 0,
   rotationHours: 22.6,
@@ -813,7 +817,7 @@ export const MIMAS: CelestialBody = {
   physical: { massKg: '3,75 × 10¹⁹ kg', densityGcm3: 1.15, gravityMs2: 0.064, escapeKms: 0.16, meanTempC: '−200 °C' },
   structure: [
     { name: 'Núcleo rocoso', pct: 25, color: '#a89f94', note: 'Pequeño y difuso.' },
-    { name: 'Manto/corteza de hielo', pct: 75, color: '#d4ccc2', note: 'Grueso; posible océano joven detectado por libaciones (2024).' }
+    { name: 'Manto/corteza de hielo', pct: 75, color: '#d4ccc2', note: 'Grueso; posible océano joven detectado por libraciones (2024).' }
   ],
   atmosphere: {
     composition: [],
@@ -821,7 +825,7 @@ export const MIMAS: CelestialBody = {
     tempMean: '−200 °C',
     tempRange: '−200 °C aprox.',
     winds: '—',
-    notes: 'El cráter Herschel (130 km) le da aspecto de “Estrella de la Muerte”. ¡Estaría de cumpleaños!'
+    notes: 'El cráter Herschel (130 km) le da aspecto de “Estrella de la Muerte”.'
   },
   missions: [
     { name: 'Voyager 1', agency: 'NASA', year: '1980', highlight: 'Primeras imágenes del cráter Herschel.' },
@@ -847,8 +851,8 @@ export const CERES: CelestialBody = {
   physical: { massKg: '9,38 × 10²⁰ kg', densityGcm3: 2.16, gravityMs2: 0.28, escapeKms: 0.51, meanTempC: '−105 °C' },
   structure: [
     { name: 'Núcleo rocoso', pct: 65, color: '#8a7f72', note: 'Diferenciado.' },
-    { name: 'Manto rico en hielo', pct: 30, color: '#a8b2ba', note: 'Agua + sales; posible relictto de océano salino.' },
-    { name: 'Corteza', pct: 5, color: '#c4bcb2', note: 'Manchas brillantes de carbonato de sodio (criptovulcanismo).' }
+    { name: 'Manto rico en hielo', pct: 30, color: '#a8b2ba', note: 'Agua + sales; posible relicto de océano salino.' },
+    { name: 'Corteza', pct: 5, color: '#c4bcb2', note: 'Manchas brillantes de carbonato de sodio (criovulcanismo).' }
   ],
   atmosphere: {
     composition: [
@@ -858,14 +862,14 @@ export const CERES: CelestialBody = {
     tempMean: '−105 °C',
     tempRange: '−105 °C aprox.',
     winds: '—',
-    notes: 'El objeto más masivo del cinturón principal: 25 % de su masa total en un solo cuerpo.'
+    notes: 'El objeto más masivo del cinturón principal: ~30 % de su masa total en un solo cuerpo.'
   },
   missions: [
     { name: 'Dawn', agency: 'NASA', year: '2015–18', highlight: 'Primer orbitador de un asteroide del cinturón; halló materia orgánica y manchas salinas.' },
     { name: 'Piazzi', agency: 'Descubrimiento', year: '1801', highlight: 'Primer asteroide descubierto; por eso “planeta enano”.' }
   ],
   summary:
-    'La reina del cinturón: contiene un tercio de la masa del cinturón principal entero. Un mundo oceánico fósil con criptovulcanismo salino activo.'
+    'La reina del cinturón: contiene casi un tercio de la masa del cinturón principal entero. Un mundo oceánico fósil con criovulcanismo salino activo.'
 };
 
 export const VESTA: CelestialBody = {
@@ -974,13 +978,13 @@ export const HALLEY: CelestialBody = {
     massKg: '2,2 × 10¹⁴ kg',
     densityGcm3: 0.6,
     gravityMs2: 0.0005,
-    escapeKms: 0.07,
+    escapeKms: 0.0023,
     meanTempC: '≈ −70 °C (núcleo)'
   },
   structure: [
-    { name: 'Corteza de polvo y orgánicos', pct: 8, color: '#8a7a66', note: 'Costra oscura (albedo 0,04 — más negro que el carbón) que atrapa el hielo interior.' },
+    { name: 'Núcleo rocoso', pct: 27, color: '#6b5d52', note: 'Material refractario primitivo desde la formación del sistema (4,6 Ga).' },
     { name: 'Hielos de H₂O, CO y CO₂', pct: 65, color: '#a8d8ea', note: '“Bola de nieve sucia”: el 80 % del deshielo es vapor de agua.' },
-    { name: 'Núcleo rocoso', pct: 27, color: '#6b5d52', note: 'Material refractario primitivo desde la formación del sistema (4,6 Ga).' }
+    { name: 'Corteza de polvo y orgánicos', pct: 8, color: '#8a7a66', note: 'Costra oscura (albedo 0,04 — más negro que el carbón) que atrapa el hielo interior.' }
   ],
   atmosphere: {
     composition: [
@@ -1028,13 +1032,13 @@ export const ENCKE: CelestialBody = {
     massKg: '≈ 3 × 10¹³ kg (est.)',
     densityGcm3: 0.6,
     gravityMs2: 0.0003,
-    escapeKms: 0.05,
+    escapeKms: 0.0013,
     meanTempC: '≈ −80 °C (núcleo)'
   },
   structure: [
-    { name: 'Corteza de polvo', pct: 10, color: '#8a7a66', note: 'Manto refractario que se agrieta con cada perihelio.' },
+    { name: 'Núcleo rocoso', pct: 28, color: '#6b5d52', note: 'Resto primitivo; quizás un fragmento de un cometa mayor roto.' },
     { name: 'Hielos volátiles', pct: 62, color: '#a8d8ea', note: 'Reserva de agua y gases congelados, ya muy gastada por ~10⁵ perihelios.' },
-    { name: 'Núcleo rocoso', pct: 28, color: '#6b5d52', note: 'Resto primitivo; quizás un fragmento de un cometa mayor roto.' }
+    { name: 'Corteza de polvo', pct: 10, color: '#8a7a66', note: 'Manto refractario que se agrieta con cada perihelio.' }
   ],
   atmosphere: {
     composition: [
@@ -1048,7 +1052,7 @@ export const ENCKE: CelestialBody = {
     notes: 'Es el cometa con más pasos perihélicos observados de la historia: se registra en cada vuelta desde 1786.'
   },
   missions: [
-    { name: 'Pierre Méchain', agency: 'Descubrimiento', year: '1786', highlight: 'Lo avista desde París; posteriormente se hallaron apariciones previas desde 1786.' },
+    { name: 'Pierre Méchain', agency: 'Descubrimiento', year: '1786', highlight: 'Lo avistó desde París; en 1795 y 1805 fue reobservado antes de identificarse su órbita.' },
     { name: 'Johann Encke', agency: 'Matemática orbital', year: '1819', highlight: 'Encontró la órbita y predijo el retorno de 1822: segundo cometa periódico confirmado.' }
   ],
   summary:
@@ -1084,9 +1088,9 @@ export const CHURYUMOV: CelestialBody = {
     meanTempC: '≈ −93 °C'
   },
   structure: [
-    { name: 'Corteza de polvo y orgánicos', pct: 12, color: '#8a7a66', note: 'Terrazas, acantilados y dunas de polvo en un mundo sin aire.' },
+    { name: 'Dos lóbulos rocosos', pct: 25, color: '#6b5d52', note: 'Es un “patito de goma”: dos cometas suaves que chocaron a baja velocidad y quedaron pegados.' },
     { name: 'Hielos de H₂O/CO₂ (porosos)', pct: 63, color: '#a8d8ea', note: 'Densidad 0,53 g/cm³: más de la mitad es vacío. Un copo de nieve cósmico.' },
-    { name: 'Dos lóbulos rocosos', pct: 25, color: '#6b5d52', note: 'Es un “patito de goma”: dos cometas suaves que chocaron a baja velocidad y quedaron pegados.' }
+    { name: 'Corteza de polvo y orgánicos', pct: 12, color: '#8a7a66', note: 'Terrazas, acantilados y dunas de polvo en un mundo sin aire.' }
   ],
   atmosphere: {
     composition: [
@@ -1098,7 +1102,7 @@ export const CHURYUMOV: CelestialBody = {
     pressure: '≈ 10⁻⁷ bar (coma activa)',
     tempMean: '≈ −93 °C',
     winds: 'Chorros a 600 m/s',
-    notes: 'Rosetta detectó O₂ molecular, oxígeno “fósil” del nacimiento del sistema solar: la mitad de la edad del Sol en una coma.'
+    notes: 'Rosetta detectó O₂ molecular, oxígeno “fósil” tan antiguo como el propio Sistema Solar (~4 600 Ma) en una coma.'
   },
   missions: [
     { name: 'Churyumov y Gerasimenko', agency: 'Descubrimiento', year: '1969', highlight: 'Hallado en placas fotográficas del observatorio de Alma-Ata (Kazajistán).' },
@@ -1134,13 +1138,13 @@ export const SWIFT_TUTTLE: CelestialBody = {
     massKg: '≈ 5 × 10¹⁵ kg (est.)',
     densityGcm3: 0.6,
     gravityMs2: 0.001,
-    escapeKms: 0.12,
+    escapeKms: 0.0072,
     meanTempC: '≈ −80 °C'
   },
   structure: [
-    { name: 'Corteza refractaria', pct: 8, color: '#8a7a66', note: 'Negra y poco reflectante; oculta el hielo hasta el perihelio.' },
+    { name: 'Núcleo rocoso', pct: 28, color: '#6b5d52', note: 'El mayor objeto conocido cuya órbita cruza la de la Tierra.' },
     { name: 'Hielos de H₂O/CO/CO₂', pct: 64, color: '#a8d8ea', note: 'Con 26 km de núcleo, cada perihelio libera una masa enorme de polvo.' },
-    { name: 'Núcleo rocoso', pct: 28, color: '#6b5d52', note: 'El mayor objeto conocido cuyo órbita cruza la de la Tierra.' }
+    { name: 'Corteza refractaria', pct: 8, color: '#8a7a66', note: 'Negra y poco reflectante; oculta el hielo hasta el perihelio.' }
   ],
   atmosphere: {
     composition: [

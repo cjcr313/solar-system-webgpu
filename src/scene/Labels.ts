@@ -14,8 +14,12 @@ export class LabelManager {
     isMoon: boolean;
     isComet: boolean;
     id: string;
+    parentId?: string;
+    parentGetPos?: (out: THREE.Vector3) => THREE.Vector3;
+    parentGetRadius?: () => number;
   }[] = [];
   private tmp = new THREE.Vector3();
+  private tmp2 = new THREE.Vector3();
   visible = true;
 
   constructor() {
@@ -27,7 +31,10 @@ export class LabelManager {
     name: string,
     isMoon: boolean,
     getWorldPos: (out: THREE.Vector3) => THREE.Vector3,
-    isComet = false
+    isComet = false,
+    parentId?: string,
+    parentGetPos?: (out: THREE.Vector3) => THREE.Vector3,
+    parentGetRadius?: () => number
   ) {
     const el = document.createElement('div');
     el.className = `body-label${isMoon ? ' moon-label' : ''}${isComet ? ' comet-label' : ''}`;
@@ -40,7 +47,7 @@ export class LabelManager {
       );
     });
     this.root.appendChild(el);
-    this.items.push({ el, getWorldPos, isMoon, isComet, id });
+    this.items.push({ el, getWorldPos, isMoon, isComet, id, parentId, parentGetPos, parentGetRadius });
   }
 
   setSelected(id: string | null) {
@@ -59,12 +66,31 @@ export class LabelManager {
     }
   }
 
-  update(camera: THREE.PerspectiveCamera, w: number, h: number) {
+  update(
+    camera: THREE.PerspectiveCamera,
+    w: number,
+    h: number,
+    focusedId: string | null = null,
+    selectedId: string | null = null
+  ) {
     if (!this.visible) {
       for (const it of this.items) it.el.style.display = 'none';
       return;
     }
     for (const it of this.items) {
+      if (it.isMoon && it.id !== focusedId && it.id !== selectedId) {
+        const parentFocused =
+          it.parentId !== undefined && (focusedId === it.parentId || selectedId === it.parentId);
+        if (!parentFocused && it.parentGetPos) {
+          const pPos = it.parentGetPos(this.tmp2);
+          const distParent = pPos.distanceTo(camera.position);
+          const thresh = Math.max((it.parentGetRadius?.() ?? 1) * 18, 12);
+          if (distParent > thresh) {
+            it.el.style.display = 'none';
+            continue;
+          }
+        }
+      }
       const p = it.getWorldPos(this.tmp);
       const dist = p.distanceTo(camera.position);
       this.tmp.project(camera);

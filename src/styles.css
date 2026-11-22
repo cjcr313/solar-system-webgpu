@@ -110,9 +110,19 @@ input[type='range']::-moz-range-thumb {
   @apply translate-x-4 bg-cyan-300;
 }
 
+.hud-btn:focus-visible,
+.icon-btn:focus-visible,
+.chip:focus-visible,
+.tab-btn:focus-visible,
+.toggle-row:focus-visible,
+input[type='range']:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 2px;
+}
+
 /* ---------- Tabs ---------- */
 .tab-btn {
-  @apply cursor-pointer rounded-md px-2.5 py-1.5 font-mono text-[11px] tracking-wider text-slate-400 uppercase transition-all;
+  @apply shrink-0 cursor-pointer rounded-md px-1 py-1 font-mono text-[10px] tracking-normal whitespace-nowrap text-slate-400 uppercase transition-all;
 }
 .tab-btn:hover {
   @apply text-slate-200;
@@ -266,6 +276,10 @@ input[type='range']::-moz-range-thumb {
   background: #22d3ee;
   box-shadow: 0 0 8px #22d3ee;
   transform: translateY(-50%);
+}
+.cutaway-box.left-side::before {
+  left: auto;
+  right: -6px;
 }
 .cutaway-link {
   position: absolute;

@@ -48,14 +48,15 @@ export function bodyRadius(radiusKm: number, s: ScaleSnapshot): number {
 export function moonOrbitRadius(
   orbitKm: number,
   parentVisualRadius: number,
-  s: ScaleSnapshot
+  s: ScaleSnapshot,
+  ringsOuterRatio = 0
 ): { radius: number; clamped: boolean } {
-  const min = parentVisualRadius * 1.45;
+  const min = parentVisualRadius * Math.max(1.65, ringsOuterRatio > 0 ? ringsOuterRatio + 0.45 : 1.65);
   if (s.mode === 'real') {
     const scaled = (orbitKm / AU_KM) * AU_TO_UNITS * s.distanceScale * s.sizeScale;
     return scaled < min ? { radius: min, clamped: true } : { radius: scaled, clamped: false };
   }
-  // Didáctico: se escala con el radio visual del padre para armonía visual
-  const approx = (orbitKm / AU_KM) * AU_TO_UNITS * s.distanceScale;
-  return { radius: Math.max(min, parentVisualRadius * 2 + approx * 0.02), clamped: true };
+  // Didáctico: distribución logarítmica armónica siempre fuera de los anillos y sin colisiones
+  const spread = Math.log2(Math.max(1.15, orbitKm / 140_000));
+  return { radius: min + parentVisualRadius * spread * 1.15, clamped: true };
 }

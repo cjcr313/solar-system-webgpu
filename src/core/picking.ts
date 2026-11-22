@@ -38,7 +38,7 @@ export class Picker {
     private onDeselect: () => void
   ) {}
 
-  pick(clientX: number, clientY: number, canvas: HTMLCanvasElement): void {
+  pick(clientX: number, clientY: number, canvas: HTMLCanvasElement): 'body' | 'belt' | null {
     const rect = canvas.getBoundingClientRect();
     this.ndc.set(
       ((clientX - rect.left) / rect.width) * 2 - 1,
@@ -65,7 +65,7 @@ export class Picker {
     }
     if (bestId) {
       this.onSelect(bestId, 'body');
-      return;
+      return 'body';
     }
 
     // 2) Cinturones (picking por instancia en CPU)
@@ -84,11 +84,12 @@ export class Picker {
       const id = bestBelt.bodyIdForInstance(bestInst);
       if (id) {
         this.onSelect(id, 'belt');
-        return;
+        return 'belt';
       }
     }
 
     this.onDeselect();
+    return null;
   }
 
   private effectiveRadius(b: PickableBody, center: THREE.Vector3): number {

@@ -5,6 +5,7 @@
  * motor lee el snapshot con simStore.getState() cada frame.
  */
 import { createStore } from 'zustand/vanilla';
+import { J2000_EPOCH_MS } from '../data/celestialData';
 
 export type DistanceMode = 'real' | 'didactic';
 
@@ -35,6 +36,9 @@ export interface SimState {
   showBelts: boolean;
   showComets: boolean;
   showLabels: boolean;
+  showAxes: boolean;
+  showZones: boolean;
+  showApsides: boolean;
 
   /** Panel izquierdo de controles (colapsable, se recuerda entre sesiones). */
   leftPanelOpen: boolean;
@@ -50,6 +54,16 @@ export interface SimState {
   fps: number;
 }
 
+export type BooleanToggleKey =
+  | 'showPlanetOrbits'
+  | 'showMoonOrbits'
+  | 'showBelts'
+  | 'showComets'
+  | 'showLabels'
+  | 'showAxes'
+  | 'showZones'
+  | 'showApsides';
+
 export interface SimActions {
   setPaused(v: boolean): void;
   togglePause(): void;
@@ -59,7 +73,9 @@ export interface SimActions {
   setDistanceScale(v: number): void;
   setSizeScale(v: number): void;
   setSimDays(d: number): void;
-  toggle(key: 'showPlanetOrbits' | 'showMoonOrbits' | 'showBelts' | 'showComets' | 'showLabels'): void;
+  setToday(): void;
+  toggle(key: BooleanToggleKey): void;
+  setLeftPanelOpen(open: boolean): void;
   toggleLeftPanel(): void;
   select(id: string | null): void;
   focus(id: string | null): void;
@@ -78,20 +94,26 @@ export const MODE_DEFAULTS: Record<DistanceMode, { distanceScale: number; sizeSc
   didactic: { distanceScale: 1, sizeScale: 1 }
 };
 
+export function todaySimDays(): number {
+  return (Date.now() - J2000_EPOCH_MS) / 86_400_000;
+}
+
 /** Preferencia persistida del panel de controles (localStorage). */
 function readLeftPanelPref(): boolean {
   try {
-    return localStorage.getItem('solar:leftPanelOpen') !== '0';
+    const saved = localStorage.getItem('solar:leftPanelOpen');
+    if (saved !== null) return saved !== '0';
   } catch {
-    return true;
+    /* ignore */
   }
+  return typeof window !== 'undefined' ? window.innerWidth >= 768 : true;
 }
 
 export const simStore = createStore<SimStore>()((set) => ({
   timeScale: SPEED_PRESETS.day.secPerSec,
   paused: false,
   speedPreset: 'day',
-  simDays: 9_760, // ~ago 2026 desde J2000
+  simDays: todaySimDays(),
 
   distanceMode: 'didactic',
   distanceScale: 1,
@@ -102,6 +124,9 @@ export const simStore = createStore<SimStore>()((set) => ({
   showBelts: true,
   showComets: true,
   showLabels: true,
+  showAxes: false,
+  showZones: false,
+  showApsides: false,
 
   leftPanelOpen: readLeftPanelPref(),
 
@@ -129,7 +154,16 @@ export const simStore = createStore<SimStore>()((set) => ({
   setDistanceScale: (v) => set({ distanceScale: v }),
   setSizeScale: (v) => set({ sizeScale: v }),
   setSimDays: (d) => set({ simDays: d }),
+  setToday: () => set({ simDays: todaySimDays() }),
   toggle: (key) => set((s) => ({ [key]: !s[key] }) as Partial<SimState>),
+  setLeftPanelOpen: (open) => {
+    try {
+      localStorage.setItem('solar:leftPanelOpen', open ? '1' : '0');
+    } catch {
+      /* sin almacenamiento */
+    }
+    set({ leftPanelOpen: open });
+  },
   toggleLeftPanel: () =>
     set((s) => {
       const open = !s.leftPanelOpen;

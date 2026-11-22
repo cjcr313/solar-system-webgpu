@@ -16,7 +16,7 @@ import { PlanetOrbitLine } from '../scene/Orbits';
 import { LabelManager } from '../scene/Labels';
 import { CutawayLabels } from '../scene/Cutaway';
 import { CometFX } from '../scene/Comets';
-import { orbitalPosition, type Vec3 } from '../physics/kepler';
+import { orbitalPosition, apsidesPositions, type Vec3 } from '../physics/kepler';
 import {
   SUN, PLANETS, MOONS, NOTABLE_ASTEROIDS, COMETS,
   type CelestialBody
@@ -49,6 +49,10 @@ export class Simulation {
   private fpsEma = 60;
   private fpsAcc = 0;
   private pseudoSelected: CelestialBody | null = null;
+  private lastBeltSimDays = Number.NaN;
+  private lastBeltScaleKey = '';
+  private zonesGroup = new THREE.Group();
+  private apsidesGroup = new THREE.Group();
   private unsubscribe: () => void;
 
   constructor(canvas: HTMLCanvasElement, renderer: THREE.WebGPURenderer) {
@@ -136,14 +140,24 @@ export class Simulation {
 
     /* ---------- Etiquetas HTML ---------- */
     for (const b of this.bodies.values()) {
+      const pView = b.data.moonOf ? this.bodies.get(b.data.moonOf.parentId) : undefined;
       this.labels.add(
         b.id,
         b.data.name,
         b.data.type === 'moon',
         (out) => b.getWorldPos(out),
-        b.data.type === 'comet'
+        b.data.type === 'comet',
+        pView?.id,
+        pView ? (out) => pView.getWorldPos(out) : undefined,
+        pView ? () => pView.visualRadius : undefined
       );
     }
+
+    /* ---------- Capas didácticas (Zona habitable / Línea de hielo + Ápsides) ---------- */
+    this.zonesGroup.visible = st.showZones;
+    this.scene.add(this.zonesGroup);
+    this.apsidesGroup.visible = st.showApsides;
+    this.scene.add(this.apsidesGroup);
 
     /* ---------- Cinturones (compute GPU) ---------- */
     const mainBelt = new AsteroidBelt(
@@ -236,6 +250,17 @@ export class Simulation {
       if (state.showLabels !== prev.showLabels) {
         this.labels.visible = state.showLabels;
       }
+      if (state.showAxes !== prev.showAxes) {
+        for (const b of this.bodies.values()) b.setAxisVisible(state.showAxes);
+      }
+      if (state.showZones !== prev.showZones) {
+        this.zonesGroup.visible = state.showZones;
+        if (state.showZones) this.rebuildZones(this.currentScale(state));
+      }
+      if (state.showApsides !== prev.showApsides) {
+        this.apsidesGroup.visible = state.showApsides;
+        this.rebuildApsides(state.selectedId, this.currentScale(state));
+      }
       // El corte interior es MODAL a la inspección: al seleccionar otro
       // cuerpo (o cerrar el panel), el corte del cuerpo anterior se cierra
       // solo — antes quedaba "pegado" abierto para siempre.
@@ -244,6 +269,7 @@ export class Simulation {
         if (cut && cut !== state.selectedId) {
           simStore.getState().setCutaway(null);
         }
+        if (state.showApsides) this.rebuildApsides(state.selectedId, this.currentScale(state));
       }
       if (state.selectedId !== prev.selectedId) this.labels.setSelected(state.selectedId);
       if (state.cutawayBodyId !== prev.cutawayBodyId) {
@@ -325,8 +351,9 @@ export class Simulation {
       this.picker.pick(e.clientX, e.clientY, this.canvas);
     });
     this.canvas.addEventListener('dblclick', (e) => {
+      const hit = this.picker.pick(e.clientX, e.clientY, this.canvas);
       const st = simStore.getState();
-      if (st.selectedId) this.focusBody(st.selectedId);
+      if (hit === 'body' && st.selectedId) this.focusBody(st.selectedId);
     });
   }
 
@@ -420,6 +447,70 @@ export class Simulation {
       line.setOpacity(0.2);
     }
     for (const b of this.belts) b.applyScale(s);
+    if (simStore.getState().showZones) this.rebuildZones(s);
+    if (simStore.getState().showApsides) this.rebuildApsides(simStore.getState().selectedId, s);
+  }
+
+  private currentScale(st: { distanceMode: 'real' | 'didactic'; distanceScale: number; sizeScale: number }): ScaleSnapshot {
+    return { mode: st.distanceMode, distanceScale: st.distanceScale, sizeScale: st.sizeScale };
+  }
+
+  private rebuildZones(s: ScaleSnapshot) {
+    while (this.zonesGroup.children.length > 0) {
+      const obj = this.zonesGroup.children.pop() as THREE.Mesh;
+      obj.geometry.dispose();
+    }
+    const addRing = (rMinAU: number, rMaxAU: number, color: number, opacity: number) => {
+      const inner = distanceTransform(rMinAU, s);
+      const outer = distanceTransform(rMaxAU, s);
+      const geo = new THREE.RingGeometry(inner, outer, 128, 1);
+      const mat = new THREE.MeshBasicNodeMaterial({
+        color,
+        transparent: true,
+        opacity,
+        side: THREE.DoubleSide,
+        depthWrite: false
+      });
+      const m = new THREE.Mesh(geo, mat);
+      m.rotation.x = -Math.PI / 2;
+      m.position.y = -0.02;
+      this.zonesGroup.add(m);
+    };
+    addRing(0.95, 1.67, 0x22c55e, 0.13); // Zona habitable
+    addRing(2.7, 4.5, 0x38bdf8, 0.08);   // Línea de hielo (frost line)
+  }
+
+  private rebuildApsides(selectedId: string | null, s: ScaleSnapshot) {
+    while (this.apsidesGroup.children.length > 0) {
+      const obj = this.apsidesGroup.children.pop() as THREE.Mesh | THREE.Line;
+      obj.geometry.dispose();
+    }
+    if (!selectedId || selectedId.startsWith(BELT_PSEUDO_PREFIX)) return;
+    const body = this.bodies.get(selectedId)?.data;
+    if (!body?.orbital) return;
+    const { perihelion, aphelion } = apsidesPositions(body.orbital, {
+      distanceTransform: (rAU) => distanceTransform(rAU, s)
+    });
+    const dotSize = Math.max((s.mode === 'real' ? 0.45 : 0.24) * s.distanceScale, 0.14);
+    const mkMarker = (p: Vec3, color: number) => {
+      const geo = new THREE.SphereGeometry(dotSize, 16, 12);
+      const mat = new THREE.MeshBasicNodeMaterial({ color });
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(p.x, p.y, p.z);
+      this.apsidesGroup.add(m);
+    };
+    mkMarker(perihelion, 0x34d399); // Perihelio
+    mkMarker(aphelion, 0x60a5fa);   // Afelio
+    const lineGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(perihelion.x, perihelion.y, perihelion.z),
+      new THREE.Vector3(aphelion.x, aphelion.y, aphelion.z)
+    ]);
+    const lineMat = new THREE.LineBasicNodeMaterial({
+      color: 0x94a3b8,
+      transparent: true,
+      opacity: 0.35
+    });
+    this.apsidesGroup.add(new THREE.Line(lineGeo, lineMat));
   }
 
   private updateBodies(simDays: number, s: ScaleSnapshot) {
@@ -430,14 +521,13 @@ export class Simulation {
     const w = this.canvas.clientWidth;
     const h = Math.max(this.canvas.clientHeight, 1);
     this.rig.resize(w / h);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.setSize(w, h, false);
   }
 
   async loadAssets() {
     const all = [...this.bodies.values()];
-    for (const b of all) {
-      await b.loadAssets();
-    }
+    await Promise.all(all.map((b) => b.loadAssets()));
   }
 
   /** Loop de render (renderer.setAnimationLoop). */
@@ -462,8 +552,13 @@ export class Simulation {
     for (const b of this.bodies.values()) b.updateCutaway(dt);
     this.updateCometFX(simDays, scale, t);
 
-    for (const b of this.belts) {
-      if (b.mesh.visible) b.tick(this.renderer, simDays);
+    const scaleKey = `${scale.mode}:${scale.distanceScale}`;
+    if (!st.paused || simDays !== this.lastBeltSimDays || scaleKey !== this.lastBeltScaleKey) {
+      for (const b of this.belts) {
+        if (b.mesh.visible) b.tick(this.renderer, simDays);
+      }
+      this.lastBeltSimDays = simDays;
+      this.lastBeltScaleKey = scaleKey;
     }
 
     this.rig.update(dt);
@@ -471,11 +566,11 @@ export class Simulation {
     // Headlamp: sigue a la cámara e ilumina lo que se mira
     this.headlamp.position.copy(this.rig.camera.position);
     this.headlamp.target.position.copy(this.rig.focusPoint);
-    this.headlamp.intensity = st.cutawayBodyId ? 0.85 : this.rig.isFollowing ? 0.45 : 0.08;
+    this.headlamp.intensity = st.cutawayBodyId ? 0.85 : this.rig.isFollowing ? 0.25 : 0.08;
 
     const w = this.canvas.clientWidth;
     const h = Math.max(this.canvas.clientHeight, 1);
-    this.labels.update(this.rig.camera, w, h);
+    this.labels.update(this.rig.camera, w, h, st.focusedId, st.selectedId);
 
     const cutBody = st.cutawayBodyId ? this.bodies.get(st.cutawayBodyId) : null;
     this.cutawayLabels.update(this.rig.camera, w, h, cutBody?.cutawayProgress ?? 0);
@@ -581,6 +676,7 @@ export class Simulation {
       const b = this.bodies.get(st.focusedId);
       if (
         b &&
+        b.data.type !== 'comet' &&
         b.data.structure.length >= 2 &&
         this.rig.isFollowing &&
         this.rig.orbitRadius < b.visualRadius * 7

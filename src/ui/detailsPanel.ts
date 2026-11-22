@@ -6,7 +6,8 @@
  */
 import { simStore } from '../core/store';
 import { icon, ICONS } from './icons';
-import { BODY_TYPE_LABEL, type CelestialBody } from '../data/celestialData';
+import { BODY_TYPE_LABEL, BODIES_BY_ID, MOONS, type CelestialBody } from '../data/celestialData';
+import { orbitalTelemetry } from '../physics/kepler';
 import type { Simulation } from '../core/simulation';
 
 type Tab = 'overview' | 'structure' | 'atmosphere' | 'physics' | 'exploration';
@@ -24,13 +25,16 @@ export class DetailsPanel {
   private current: CelestialBody | null = null;
   private tab: Tab = 'overview';
   private unsub: () => void;
+  private liveTimer: number;
 
   constructor(private sim: Simulation) {
     this.root = document.createElement('div');
     this.root.id = 'details-panel';
     this.root.className =
-      'glass fade-in pointer-events-auto fixed top-16 right-3 z-30 hidden max-h-[calc(100vh-140px)] w-[340px] flex-col overflow-hidden rounded-xl';
+      'glass fade-in pointer-events-auto fixed top-16 right-3 z-30 hidden max-h-[calc(100vh-140px)] w-[340px] flex-col overflow-hidden rounded-xl max-sm:inset-x-2 max-sm:top-auto max-sm:right-auto max-sm:bottom-24 max-sm:w-auto max-sm:max-h-[46vh]';
     document.getElementById('hud-root')!.appendChild(this.root);
+
+    this.liveTimer = window.setInterval(() => this.refreshLiveTelemetry(), 400);
 
     this.unsub = simStore.subscribe((s, prev) => {
       if (s.selectedId !== prev.selectedId) {
@@ -43,6 +47,9 @@ export class DetailsPanel {
   }
 
   private show() {
+    if (window.innerWidth < 768 && simStore.getState().leftPanelOpen) {
+      simStore.getState().setLeftPanelOpen(false);
+    }
     this.root.classList.remove('hidden');
     this.root.classList.add('flex');
     this.render();
@@ -87,16 +94,16 @@ export class DetailsPanel {
           </div>
         </div>
         <div class="flex items-center gap-1">
-          <button id="dp-cutaway" class="icon-btn ${cutOn ? 'active' : ''}" style="${canCut ? '' : 'display:none'}" title="Ver interior (corte animado)">${icon(ICONS.layers)}</button>
-          <button id="dp-focus" class="icon-btn" title="Enfocar cámara">${icon(ICONS.focus)}</button>
-          <button id="dp-close" class="icon-btn" title="Cerrar">${icon(ICONS.x)}</button>
+          <button id="dp-cutaway" class="icon-btn ${cutOn ? 'active' : ''}" style="${canCut ? '' : 'display:none'}" title="Ver interior (corte animado)" aria-label="Ver corte interior 3D">${icon(ICONS.layers)}</button>
+          <button id="dp-focus" class="icon-btn" title="Enfocar cámara" aria-label="Enfocar cámara en el cuerpo">${icon(ICONS.focus)}</button>
+          <button id="dp-close" class="icon-btn" title="Cerrar" aria-label="Cerrar panel de detalles">${icon(ICONS.x)}</button>
         </div>
       </div>
-      <nav class="flex gap-1 border-b border-slate-700/50 p-2">
+      <nav role="tablist" aria-label="Secciones científicas" class="flex gap-0.5 overflow-x-auto border-b border-slate-700/50 px-1.5 py-1.5">
         ${(Object.keys(TAB_LABELS) as Tab[])
           .map(
             (t) =>
-              `<button data-tab="${t}" class="tab-btn ${t === this.tab ? 'active' : ''}">${TAB_LABELS[t]}</button>`
+              `<button data-tab="${t}" role="tab" aria-selected="${t === this.tab}" class="tab-btn ${t === this.tab ? 'active' : ''}">${TAB_LABELS[t]}</button>`
           )
           .join('')}
       </nav>
@@ -117,6 +124,14 @@ export class DetailsPanel {
     for (const el of this.root.querySelectorAll<HTMLButtonElement>('[data-tab]')) {
       el.addEventListener('click', () => this.setTab(el.dataset.tab as Tab));
     }
+    for (const el of this.root.querySelectorAll<HTMLButtonElement>('[data-jump-id]')) {
+      el.addEventListener('click', () => {
+        const targetId = el.dataset.jumpId!;
+        simStore.getState().select(targetId);
+        this.sim.focusBody(targetId);
+      });
+    }
+    this.refreshLiveTelemetry();
   }
 
   private tabContent(b: CelestialBody): string {
@@ -137,41 +152,79 @@ export class DetailsPanel {
   /* ---------------- Pestañas ---------------- */
 
   private overviewTab(b: CelestialBody): string {
-    const rows: [string, string][] = [
+    const rows: [string, string, string?][] = [
       ['Radio medio', b.radiusKm.toLocaleString('es-CL') + ' km'],
       ['Masa', b.physical.massKg]
     ];
     if (b.orbital) {
-      rows.push(['Semieje mayor (a)', b.orbital.a.toFixed(3) + ' UA']);
-      rows.push(['Período orbital', this.fmtDays(b.orbital.periodDays)]);
-      rows.push(['Excentricidad', b.orbital.e.toFixed(4)]);
-      rows.push(['Inclinación', b.orbital.iDeg.toFixed(2) + '°']);
+      rows.push(['Semieje mayor (a)', b.orbital.a.toFixed(3) + ' UA', 'Distancia media al Sol (1 UA ≈ 149,6 millones de km).']);
+      rows.push(['Período orbital', this.fmtDays(b.orbital.periodDays), 'Tiempo que tarda en completar una órbita alrededor del Sol.']);
+      rows.push(['Excentricidad', b.orbital.e.toFixed(4), 'Qué tan elíptica es la órbita (0 = círculo perfecto, cercano a 1 = muy alargada).']);
+      rows.push(['Inclinación', b.orbital.iDeg.toFixed(2) + '°', 'Ángulo del plano orbital respecto al plano de la órbita terrestre (eclíptica).']);
     }
     if (b.moonOf) {
       rows.push(['Distancia al padre', b.moonOf.radiusKm.toLocaleString('es-CL') + ' km']);
       rows.push(['Período orbital', this.fmtDays(b.moonOf.periodDays)]);
     }
     if (b.comet) {
-      rows.push(['Perihelio (q)', b.comet.perihelionAU.toFixed(3) + ' UA']);
-      rows.push(['Afelio (Q)', b.comet.aphelionAU.toFixed(2) + ' UA']);
+      rows.push(['Perihelio (q)', b.comet.perihelionAU.toFixed(3) + ' UA', 'Punto de la órbita más cercano al Sol.']);
+      rows.push(['Afelio (Q)', b.comet.aphelionAU.toFixed(2) + ' UA', 'Punto de la órbita más lejano al Sol.']);
       rows.push(['Último perihelio', b.comet.lastPerihelion]);
       rows.push(['Próximo perihelio', b.comet.nextPerihelion]);
-      if (b.comet.retrograde) rows.push(['Sentido orbital', 'Retrógrado (i > 90°)']);
+      if (b.comet.retrograde) rows.push(['Sentido orbital', 'Retrógrado (i > 90°)', 'Orbita en sentido opuesto al movimiento de los planetas.']);
     }
-    rows.push(['Rotación (día sideral)', this.fmtHours(b.rotationHours)]);
+    rows.push(['Rotación (día sideral)', this.fmtHours(b.rotationHours), 'Tiempo que tarda en dar una vuelta completa sobre su eje respecto a las estrellas.']);
+
+    const childMoons = MOONS.filter((m) => m.moonOf?.parentId === b.id);
+    const parentBody = b.moonOf ? BODIES_BY_ID[b.moonOf.parentId] : undefined;
+
+    const liveBox = b.orbital
+      ? `<div class="mb-3 grid grid-cols-3 gap-1.5 rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-2 text-center" title="Calculado en vivo desde la ecuación de Kepler y vis-viva">
+          <div>
+            <div class="font-mono text-[9px] tracking-wider text-slate-400 uppercase">Dist. Sol</div>
+            <div id="dp-live-dist" class="font-mono text-[11px] font-semibold text-cyan-200">—</div>
+          </div>
+          <div>
+            <div class="font-mono text-[9px] tracking-wider text-slate-400 uppercase">Tiempo-luz</div>
+            <div id="dp-live-light" class="font-mono text-[11px] font-semibold text-amber-200">—</div>
+          </div>
+          <div>
+            <div class="font-mono text-[9px] tracking-wider text-slate-400 uppercase">Vel. orbital</div>
+            <div id="dp-live-speed" class="font-mono text-[11px] font-semibold text-emerald-300">—</div>
+          </div>
+        </div>`
+      : '';
+
+    const moonsHtml =
+      childMoons.length > 0
+        ? `<div class="mt-3 border-t border-slate-700/40 pt-2.5">
+            <p class="mb-1.5 font-mono text-[10px] tracking-wider text-slate-400 uppercase">Lunas principales (${childMoons.length})</p>
+            <div class="flex flex-wrap gap-1">
+              ${childMoons.map((m) => `<button data-jump-id="${m.id}" class="chip">${m.name}</button>`).join('')}
+            </div>
+          </div>`
+        : '';
+
+    const parentHtml = parentBody
+      ? `<button data-jump-id="${parentBody.id}" class="hud-btn mt-3 w-full">← Volver a ${parentBody.name}</button>`
+      : '';
+
     return `
       <p class="mb-3 text-[12.5px] leading-relaxed text-slate-300">${b.summary}</p>
+      ${liveBox}
       <dl class="space-y-1.5">
         ${rows
           .map(
-            ([k, v]) =>
-              `<div class="flex items-baseline justify-between gap-3 border-b border-slate-700/30 pb-1">
-                 <dt class="text-[11px] text-slate-400">${k}</dt>
+            ([k, v, tip]) =>
+              `<div class="flex items-baseline justify-between gap-3 border-b border-slate-700/30 pb-1" ${tip ? `title="${tip}"` : ''}>
+                 <dt class="text-[11px] text-slate-400 ${tip ? 'cursor-help underline decoration-slate-600 decoration-dotted underline-offset-2' : ''}">${k}</dt>
                  <dd class="font-mono text-[11.5px] text-slate-200">${v}</dd>
                </div>`
           )
           .join('')}
       </dl>
+      ${moonsHtml}
+      ${parentHtml}
       ${b.comet ? `<p class="mt-3 rounded-md bg-amber-500/5 p-2 text-[11px] leading-relaxed text-slate-300">${icon(ICONS.info, 'inline w-3 h-3 align-[-2px] mr-1')} ${b.comet.tailNote}</p>` : ''}`;
   }
 
@@ -252,28 +305,40 @@ export class DetailsPanel {
 
   private physicsTab(b: CelestialBody): string {
     const p = b.physical;
-    const rows: [string, string][] = [
+    const rows: [string, string, string?][] = [
       ['Masa', p.massKg],
       ['Densidad media', p.densityGcm3.toLocaleString('es-CL') + ' g/cm³'],
       ['Gravedad superficial', p.gravityMs2.toLocaleString('es-CL') + ' m/s²'],
-      ['Velocidad de escape', p.escapeKms.toLocaleString('es-CL') + ' km/s'],
+      ['Velocidad de escape', p.escapeKms.toLocaleString('es-CL') + ' km/s', 'Velocidad mínima para escapar de la gravedad de este cuerpo sin impulso adicional.'],
       ['Radio medio', b.radiusKm.toLocaleString('es-CL') + ' km'],
-      ['Inclinación axial', b.axialTiltDeg.toFixed(2) + '°'],
+      ['Inclinación axial', b.axialTiltDeg.toFixed(2) + '°', 'Ángulo del eje de rotación respecto a la perpendicular de su órbita (causa las estaciones).'],
       ['Rotación', this.fmtHours(b.rotationHours) + (b.rotationHours < 0 ? ' (retrógrada)' : '')],
       ['Temp. media', p.meanTempC ?? '—']
     ];
     if (b.orbital) rows.push(['Año (período orbital)', this.fmtDays(b.orbital.periodDays)]);
+    const gRatio = p.gravityMs2 / 9.81;
+    const weight70 = 70 * gRatio;
+    const weightFmt =
+      weight70 < 0.1
+        ? weight70.toFixed(3).replace('.', ',')
+        : weight70 < 10
+          ? weight70.toFixed(1).replace('.', ',')
+          : Math.round(weight70).toLocaleString('es-CL');
+
     return `<dl class="space-y-1.5">
       ${rows
         .map(
-          ([k, v]) =>
-            `<div class="flex items-baseline justify-between gap-3 border-b border-slate-700/30 pb-1">
-               <dt class="text-[11px] text-slate-400">${k}</dt>
+          ([k, v, tip]) =>
+            `<div class="flex items-baseline justify-between gap-3 border-b border-slate-700/30 pb-1" ${tip ? `title="${tip}"` : ''}>
+               <dt class="text-[11px] text-slate-400 ${tip ? 'cursor-help underline decoration-slate-600 decoration-dotted underline-offset-2' : ''}">${k}</dt>
                <dd class="max-w-[62%] text-right font-mono text-[11.5px] text-slate-200">${v}</dd>
              </div>`
         )
         .join('')}
-    </dl>`;
+    </dl>
+    <div class="mt-3 rounded-lg border border-slate-700/40 bg-slate-800/40 p-2.5 text-[11px] leading-snug text-slate-300">
+      <span class="font-semibold text-cyan-200">Comparativa de gravedad:</span> una persona de <strong>70 kg</strong> en la Tierra pesaría aquí <strong class="font-mono text-amber-200">${weightFmt} kg</strong> (${gRatio.toFixed(2).replace('.', ',')}× g).
+    </div>`;
   }
 
   private explorationTab(b: CelestialBody): string {
@@ -286,12 +351,40 @@ export class DetailsPanel {
             <span class="flex items-center gap-1.5 text-[12px] font-semibold text-slate-100">${icon(ICONS.rocket, 'inline w-3.5 h-3.5')}${m.name}</span>
             <span class="font-mono text-[10px] text-cyan-300">${m.year}</span>
           </div>
-          <p class="mt-0.5 font-mono text-[9.5px] tracking-wider text-slate-500 uppercase">${m.agency}</p>
+          <p class="mt-0.5 font-mono text-[9.5px] tracking-wider text-slate-400 uppercase">${m.agency}</p>
           <p class="mt-1 text-[11px] leading-snug text-slate-300">${m.highlight}</p>
         </div>`
         )
         .join('')}
     </div>`;
+  }
+
+  /* ---------------- Telemetría en vivo + Formato ---------------- */
+
+  private refreshLiveTelemetry() {
+    if (!this.current?.orbital || this.tab !== 'overview') return;
+    const distEl = this.root.querySelector('#dp-live-dist');
+    const lightEl = this.root.querySelector('#dp-live-light');
+    const speedEl = this.root.querySelector('#dp-live-speed');
+    if (!distEl || !lightEl || !speedEl) return;
+
+    const tel = orbitalTelemetry(this.current.orbital, simStore.getState().simDays);
+    distEl.textContent = `${tel.rAU.toFixed(2)} UA`;
+    (distEl as HTMLElement).title = `${tel.distMKm.toFixed(1)} millones de km`;
+    lightEl.textContent = this.fmtLightTime(tel.lightTimeSec);
+    speedEl.textContent = `${tel.speedKmS.toFixed(1)} km/s`;
+  }
+
+  private fmtLightTime(sec: number): string {
+    if (sec < 60) return `${sec.toFixed(0)} s`;
+    if (sec < 3600) {
+      const m = Math.floor(sec / 60);
+      const s = Math.round(sec % 60);
+      return `${m}m ${String(s).padStart(2, '0')}s`;
+    }
+    const h = Math.floor(sec / 3600);
+    const m = Math.round((sec % 3600) / 60);
+    return `${h}h ${String(m).padStart(2, '0')}m`;
   }
 
   /* ---------------- Formato ---------------- */
@@ -310,6 +403,7 @@ export class DetailsPanel {
   }
 
   dispose() {
+    clearInterval(this.liveTimer);
     this.unsub();
   }
 }

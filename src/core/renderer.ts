@@ -41,6 +41,7 @@ export async function createRenderer(canvas: HTMLCanvasElement): Promise<Rendere
 
 /** Configuración de tonemapping / espacio de color común. */
 export function configureRenderer(renderer: THREE.WebGPURenderer): void {
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.15;
   renderer.setClearColor(0x04060d, 1);

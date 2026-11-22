@@ -162,15 +162,61 @@ export function sampleOrbit(
   return pts;
 }
 
-/**
- * Posición de una luna en su órbita local circular (aproximación).
- * @param angleDeg  fase inicial (grados)
- */
-export function moonLocalPosition(
-  orbitRadius: number,
-  periodDays: number,
-  days: number,
-  phaseDeg: number
-): number {
-  return TAU * (days / periodDays) + phaseDeg * DEG;
+const AU_KM = 149_597_870.7;
+const MU_SUN_KM3_S2 = 1.3271244e11;
+const C_KM_S = 299_792.458;
+
+export interface OrbitalTelemetry {
+  rAU: number;
+  distMKm: number;
+  lightTimeSec: number;
+  speedKmS: number;
+}
+
+/** Telemetría instantánea heliocéntrica (distancia, tiempo-luz y velocidad vis-viva). */
+export function orbitalTelemetry(el: OrbitalElements, days: number): OrbitalTelemetry {
+  const M = el.M0Deg * DEG + TAU * (days / el.periodDays);
+  const E = solveKepler(((M % TAU) + TAU) % TAU, el.e);
+  const xp = el.a * (Math.cos(E) - el.e);
+  const yp = el.a * Math.sqrt(1 - el.e * el.e) * Math.sin(E);
+  const rAU = Math.hypot(xp, yp);
+  const rKm = rAU * AU_KM;
+  const aKm = el.a * AU_KM;
+  const speedKmS = Math.sqrt(Math.max(0, MU_SUN_KM3_S2 * (2 / rKm - 1 / aKm)));
+  return {
+    rAU,
+    distMKm: rKm / 1e6,
+    lightTimeSec: rKm / C_KM_S,
+    speedKmS
+  };
+}
+
+/** Posiciones de perihelio (E=0) y afelio (E=π) en coordenadas de escena. */
+export function apsidesPositions(
+  el: OrbitalElements,
+  opt: OrbitSampleOptions = {}
+): { perihelion: Vec3; aphelion: Vec3 } {
+  const cw = Math.cos(el.omegaDeg * DEG),
+    sw = Math.sin(el.omegaDeg * DEG);
+  const ci = Math.cos(el.iDeg * DEG),
+    si = Math.sin(el.iDeg * DEG);
+  const cO = Math.cos(el.OmegaDeg * DEG),
+    sO = Math.sin(el.OmegaDeg * DEG);
+
+  const evalAt = (E: number): Vec3 => {
+    const xp = el.a * (Math.cos(E) - el.e);
+    const yp = el.a * Math.sqrt(1 - el.e * el.e) * Math.sin(E);
+    const rAU = Math.hypot(xp, yp);
+    const f = opt.distanceTransform ? opt.distanceTransform(rAU) / (rAU || 1e-9) : 1;
+    const x1 = cw * xp - sw * yp;
+    const y1 = sw * xp + cw * yp;
+    const out: Vec3 = { x: 0, y: 0, z: 0 };
+    eclToScene((cO * x1 - sO * ci * y1) * f, (sO * x1 + cO * ci * y1) * f, si * y1 * f, out);
+    return out;
+  };
+
+  return {
+    perihelion: evalAt(0),
+    aphelion: evalAt(Math.PI)
+  };
 }

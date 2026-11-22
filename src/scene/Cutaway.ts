@@ -14,6 +14,25 @@ import type { CelestialBody, LayerInfo } from '../data/celestialData';
  * Textura del disco de corte: anillos concéntricos por capa
  * -------------------------------------------------------------- */
 
+/** Radios normalizados (inner, outer, mid) en orden centro→superficie, consistentes entre disco 2D, cúpulas 3D y anclas. */
+function computeLayerRadii(body: CelestialBody): { inner: number; outer: number; mid: number }[] {
+  const layers = body.structure;
+  const total = layers.reduce((s, l) => s + l.pct, 0) || 100;
+  const MIN_FRAC = 9 / 506;
+  const res: { inner: number; outer: number; mid: number }[] = new Array(layers.length);
+  let rOuter = 1;
+  for (let i = layers.length - 1; i >= 0; i--) {
+    const frac = layers[i].pct / total;
+    let rInner = Math.sqrt(Math.max(rOuter * rOuter - frac, 0));
+    rInner = Math.min(rInner, rOuter - MIN_FRAC);
+    if (rOuter - rInner < 0.002) rInner = rOuter - 0.002;
+    rInner = Math.max(rInner, 0);
+    res[i] = { inner: rInner, outer: rOuter, mid: (rInner + rOuter) * 0.5 };
+    rOuter = rInner;
+  }
+  return res;
+}
+
 export function makeLayerDiskTexture(body: CelestialBody): THREE.CanvasTexture {
   const S = 1024;
   const c = document.createElement('canvas');
@@ -23,23 +42,17 @@ export function makeLayerDiskTexture(body: CelestialBody): THREE.CanvasTexture {
     cy = S / 2,
     R = S / 2 - 6;
 
-  // structure viene del centro (núcleo) a la superficie: pintar de afuera hacia adentro
-  const layers = [...body.structure].reverse();
-  const total = layers.reduce((s, l) => s + l.pct, 0) || 100;
+  const radii = computeLayerRadii(body);
 
   ctx.clearRect(0, 0, S, S);
-  // grosor radial mínimo visual: las capas ultrafinas (corteza/océanos)
-  // nunca bajan de ~9 px para que se distingan en el disco
-  const MIN_PX = 9;
-  let rOuter = R;
-  for (const l of layers) {
-    const frac = l.pct / total;
-    let rInner = Math.sqrt(Math.max(rOuter * rOuter - frac * R * R, 0));
-    rInner = Math.min(rInner, rOuter - MIN_PX);
-    if (rOuter - rInner < 1) rInner = rOuter - 1;
+  let innermost = R;
+  for (let i = body.structure.length - 1; i >= 0; i--) {
+    const l = body.structure[i];
+    const rOuter = radii[i].outer * R;
+    const rInner = Math.max(radii[i].inner * R, 1);
     ctx.beginPath();
     ctx.arc(cx, cy, rOuter, 0, Math.PI * 2);
-    ctx.arc(cx, cy, Math.max(rInner, 1), 0, Math.PI * 2, true);
+    ctx.arc(cx, cy, rInner, 0, Math.PI * 2, true);
     ctx.fillStyle = l.color;
     ctx.fill();
     if (rInner > 3) {
@@ -50,16 +63,16 @@ export function makeLayerDiskTexture(body: CelestialBody): THREE.CanvasTexture {
       ctx.lineWidth = 3;
       ctx.stroke();
     }
-    rOuter = Math.max(rInner, 1);
+    innermost = Math.min(innermost, rInner);
   }
   // brillo radial del núcleo (lo que queda al centro)
-  if (rOuter > 2) {
-    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rOuter);
+  if (innermost > 2) {
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, innermost);
     g.addColorStop(0, 'rgba(255,255,245,0.9)');
     g.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.arc(cx, cy, rOuter, 0, Math.PI * 2);
+    ctx.arc(cx, cy, innermost, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -71,29 +84,12 @@ export function makeLayerDiskTexture(body: CelestialBody): THREE.CanvasTexture {
 
 /** Radio medio (0..1) de cada anillo, en orden centro→superficie. */
 export function layerMidRadii(body: CelestialBody): number[] {
-  const layers = body.structure;
-  const total = layers.reduce((s, l) => s + l.pct, 0) || 100;
-  let rOuter = 1;
-  const mids: number[] = new Array(layers.length);
-  for (let i = layers.length - 1; i >= 0; i--) {
-    const rInner = Math.sqrt(Math.max(rOuter * rOuter - layers[i].pct / total, 0));
-    mids[i] = (rInner + rOuter) / 2;
-    rOuter = rInner;
-  }
-  return mids;
+  return computeLayerRadii(body).map((r) => r.mid);
 }
 
 /** Frontera EXTERNA (0..1) de cada capa, en orden centro→superficie (la última = 1). */
 export function layerBoundaries(body: CelestialBody): number[] {
-  const layers = body.structure;
-  const total = layers.reduce((s, l) => s + l.pct, 0) || 100;
-  let rOuter = 1;
-  const out: number[] = new Array(layers.length);
-  for (let i = layers.length - 1; i >= 0; i--) {
-    out[i] = rOuter;
-    rOuter = Math.sqrt(Math.max(rOuter * rOuter - layers[i].pct / total, 0));
-  }
-  return out;
+  return computeLayerRadii(body).map((r) => r.outer);
 }
 
 /** Puntos de anclaje locales (espacio unitario del disco) para las etiquetas. */
@@ -182,41 +178,74 @@ export class CutawayLabels {
     const op = Math.min(1, (progress - 0.72) / 0.25);
 
     // 1) proyectar anclas
-    const projected: { it: CutawayItem; ax: number; ay: number; by: number }[] = [];
+    const projected: { it: CutawayItem; ax: number; ay: number; by: number; h: number }[] = [];
     for (const it of this.items) {
-      const p = it.getWorldPos(this.tmp);
+      it.getWorldPos(this.tmp);
       this.tmp.project(camera);
       if (this.tmp.z > 1) {
         it.el.style.display = 'none';
         it.link.style.display = 'none';
         continue;
       }
+      // Mostrar antes de medir para obtener offsetHeight real (incluyendo si está abierta)
+      it.el.style.display = 'block';
       projected.push({
         it,
         ax: (this.tmp.x * 0.5 + 0.5) * w,
         ay: (-this.tmp.y * 0.5 + 0.5) * h,
-        by: 0
+        by: 0,
+        h: Math.max(it.el.offsetHeight, 36)
       });
     }
+    if (projected.length === 0) return;
 
-    // 2) anti-solape vertical: separación mínima entre cajas (push-apart)
-    const MIN_GAP = 58;
+    // 2) anti-solape vertical dinámico usando la altura real de cada caja
+    const GAP = 8;
+    const minTop = 76;
+    const maxBot = h - 96;
     projected.sort((a, b) => a.ay - b.ay);
-    projected.forEach((pr, i) => {
-      pr.by = i === 0 ? pr.ay : Math.max(pr.ay, projected[i - 1].by + MIN_GAP);
-    });
-
-    // 3) posicionar cajas (a la derecha del ancla) y dibujar conectores
     for (let i = 0; i < projected.length; i++) {
-      const { it, ax, ay } = projected[i];
-      const by = projected[i].by;
-      const bx = Math.min(ax + 34, w - 224);
-      it.el.style.display = 'block';
+      const pr = projected[i];
+      const desired = Math.max(minTop + pr.h * 0.5, pr.ay);
+      if (i === 0) {
+        pr.by = desired;
+      } else {
+        const prev = projected[i - 1];
+        const minCenter = prev.by + prev.h * 0.5 + GAP + pr.h * 0.5;
+        pr.by = Math.max(desired, minCenter);
+      }
+    }
+    // Empujar hacia arriba si la última caja desborda el borde inferior
+    const last = projected[projected.length - 1];
+    const overflow = last.by + last.h * 0.5 - maxBot;
+    if (overflow > 0) {
+      last.by -= overflow;
+      for (let i = projected.length - 2; i >= 0; i--) {
+        const cur = projected[i];
+        const next = projected[i + 1];
+        const maxCenter = next.by - next.h * 0.5 - GAP - cur.h * 0.5;
+        if (cur.by > maxCenter) cur.by = maxCenter;
+      }
+    }
+
+    // Respetar el ancho de #details-panel a la derecha en desktop
+    const dp = document.getElementById('details-panel');
+    const dpVisible = dp && !dp.classList.contains('hidden') && w >= 640;
+    const boxW = 218;
+    const rightLimit = dpVisible ? Math.max(250, w - 365 - boxW) : w - boxW - 10;
+
+    // 3) posicionar cajas y dibujar conectores
+    for (let i = 0; i < projected.length; i++) {
+      const { it, ax, ay, by } = projected[i];
+      const placeLeft = ax + 34 > rightLimit && ax - 34 - boxW >= 10;
+      const bx = placeLeft ? ax - 34 - boxW : Math.min(ax + 34, rightLimit);
+      it.el.classList.toggle('left-side', placeLeft);
       it.el.style.opacity = String(op);
       it.el.style.left = `${bx.toFixed(1)}px`;
       it.el.style.top = `${by.toFixed(1)}px`;
 
-      const dx = bx - ax;
+      const anchorEndX = placeLeft ? bx + boxW : bx;
+      const dx = anchorEndX - ax;
       const dy = by - ay;
       const len = Math.hypot(dx, dy);
       it.link.style.display = 'block';

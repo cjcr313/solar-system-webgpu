@@ -155,7 +155,8 @@ export class CameraRig {
    * enfocar, cara abierta del corte interior…
    */
   aimOrbit(theta: number, phi: number) {
-    this.tTheta = theta;
+    const diff = Math.atan2(Math.sin(theta - this.theta), Math.cos(theta - this.theta));
+    this.tTheta = this.theta + diff;
     this.tPhi = THREE.MathUtils.clamp(phi, 0.05, Math.PI - 0.05);
   }
 
@@ -174,9 +175,9 @@ export class CameraRig {
       this.focusBlend = Math.min(1, this.focusBlend + dt * 0.9);
       const blend = 1 - Math.pow(1 - this.focusBlend, 3); // easeOutCubic
       this.tTarget.lerp(p, Math.min(1, blend * 0.6 + 0.12));
-      // mantener una distancia razonable si el cuerpo cambió de tamaño
-      const want = Math.max(this.baseFollowRadius, this.follow.getRadius() * 2.0);
-      this.tRadius = Math.max(this.tRadius, want);
+      // Permitir zoom libre hasta un margen seguro (1.35× radio) sin atravesar el cuerpo
+      const minR = Math.max(this.follow.getRadius() * 1.35, 0.04);
+      this.tRadius = Math.max(this.tRadius, minR);
     }
 
     this.target.lerp(this.tTarget, k);

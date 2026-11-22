@@ -27,9 +27,9 @@ Simulación 3D de alto rendimiento del Sistema Solar con **rigor astronómico** 
 ### Cuerpos y detalle visual
 - Sol emisivo con resplandor; 8 planetas + Plutón con inclinación axial y rotación (retrógrada donde corresponde).
 - **Lunas**: la Luna, las 4 galileanas (Ío, Europa, Ganímedes, Calisto) y Titán, Encélado y Mimas — órbitas locales sincronizadas al planeta padre.
-- **Anillos de Saturno** con textura procedural (anillos C/B/A, divisiones de Cassini y Encke) y mapeo radial UV.
+- **Anillos de Saturno y Urano**: Saturno con textura real de alta resolución (anillos C/B/A, divisiones de Cassini y Encke) y Urano con anillos oscuros y tenues diferenciados.
 - **Atmósferas** con efecto de borde tipo dispersión (Fresnel/Rim shader TSL): Tierra, Venus, Marte, Neptuno, Titán…
-- **Texturas 100% procedurales** (canvas 2D + fBm): continentes terrestres, bandas jovianas con Gran Mancha Roja, cráteres mercurianos/lunares… cero assets binarios en el repo.
+- **Texturas híbridas (reales + procedurales)**: mapas 2K NASA/USGS (Solar System Scope) para Sol y planetas principales con caché de carga paralela y texturas procedurales diferenciadas (canvas 2D + fBm) para lunas (Ío, Ganímedes, Calisto, Titán, Encélado) y fallback offline.
 - Órbitas elípticas trazadas con la misma transformación de escala que las posiciones (siempre coinciden con el cuerpo), conmutables por tipo.
 
 ### Cometas con colas dinámicas

@@ -364,6 +364,46 @@ function genRings(): HTMLCanvasElement {
   return c;
 }
 
+/** Textura radial de anillos de Urano: anillos estrechos, oscuros y tenues. */
+function genUranusRings(): HTMLCanvasElement {
+  const W = 1024;
+  const { c, ctx } = makeCanvas(W, 2);
+  const img = ctx.createImageData(W, 2);
+  // Posiciones radiales aproximadas de los anillos principales (6/5/4, α/β, η/γ/δ, ε)
+  const bands: [number, number, number][] = [
+    [0.08, 0.015, 0.28],
+    [0.24, 0.02, 0.35],
+    [0.36, 0.018, 0.38],
+    [0.52, 0.022, 0.42],
+    [0.64, 0.02, 0.36],
+    [0.82, 0.045, 0.68] // anillo Épsilon (el más denso)
+  ];
+  for (let x = 0; x < W; x++) {
+    const t = x / W;
+    let alpha = 0.02; // polvo muy tenue de fondo
+    for (const [center, halfW, peak] of bands) {
+      const d = Math.abs(t - center) / halfW;
+      if (d < 1) alpha = Math.max(alpha, peak * Math.cos(d * Math.PI * 0.5));
+    }
+    for (const row of [0, 1]) {
+      const i = (row * W + x) * 4;
+      img.data[i] = 148;
+      img.data[i + 1] = 172;
+      img.data[i + 2] = 192;
+      img.data[i + 3] = Math.round(Math.min(1, alpha) * 255);
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return c;
+}
+
+function genIo(): HTMLCanvasElement {
+  const c = genRocky('#dfc048', '#b85b24', '#f3e57a', 121, 0);
+  const ctx = c.getContext('2d')!;
+  drawCraters(ctx, c.width, c.height, 55, 3, 19, 129, 'rgba(34,18,8,0.68)');
+  return c;
+}
+
 /** Sprite de resplandor (gradiente radial). */
 export function glowTexture(inner: string, outer: string, size = 256): THREE.CanvasTexture {
   const { c, ctx } = makeCanvas(size, size);
@@ -392,6 +432,10 @@ export type TextureKind =
   | 'uranus'
   | 'neptune'
   | 'pluto'
+  | 'io'
+  | 'ganymede'
+  | 'callisto'
+  | 'titan'
   | 'ice'
   | 'rock';
 
@@ -469,6 +513,18 @@ export async function getBodyTexture(
     case 'pluto':
       canvas = genRocky('#c9b295', '#7a6448', '#e8dcc8', 88, 90, true);
       break;
+    case 'io':
+      canvas = genIo();
+      break;
+    case 'ganymede':
+      canvas = genRocky('#9b9082', '#5b5248', '#d6cfc4', 141, 220);
+      break;
+    case 'callisto':
+      canvas = genRocky('#615950', '#3d3731', '#a69e94', 151, 520);
+      break;
+    case 'titan':
+      canvas = genBanded(['#d9a34a', '#e3b25d', '#cc923a', '#e6bd6e'], 131, 6, 0.25);
+      break;
     case 'ice':
       canvas = genRocky('#dce8ee', '#a8bcc8', '#f4fafc', 99, 120);
       break;
@@ -482,11 +538,16 @@ export async function getBodyTexture(
   return tex;
 }
 let ringTex: THREE.CanvasTexture | null = null;
+let uranusRingTex: THREE.CanvasTexture | null = null;
 
 const texLoader = new THREE.TextureLoader();
+const realCache = new Map<string, Promise<THREE.Texture>>();
 
 function loadReal(url: string, srgb = true): Promise<THREE.Texture> {
-  return new Promise((resolve, reject) => {
+  const key = `${url}:${srgb ? 'srgb' : 'lin'}`;
+  const cached = realCache.get(key);
+  if (cached) return cached;
+  const p = new Promise<THREE.Texture>((resolve, reject) => {
     texLoader.load(
       url,
       (t) => {
@@ -496,9 +557,14 @@ function loadReal(url: string, srgb = true): Promise<THREE.Texture> {
         resolve(t);
       },
       undefined,
-      reject
+      (err) => {
+        realCache.delete(key);
+        reject(err);
+      }
     );
   });
+  realCache.set(key, p);
+  return p;
 }
 
 const REAL_BY_KIND: Partial<Record<TextureKind, string>> = {
@@ -540,7 +606,11 @@ export interface RingTextureResult {
   isReal: boolean;
 }
 
-export async function getRingTexture(): Promise<RingTextureResult> {
+export async function getRingTexture(bodyId?: string): Promise<RingTextureResult> {
+  if (bodyId === 'uranus') {
+    if (!uranusRingTex) uranusRingTex = toTexture(genUranusRings());
+    return { tex: uranusRingTex, isReal: false };
+  }
   try {
     return { tex: await loadReal(saturnRingUrl), isReal: true };
   } catch {

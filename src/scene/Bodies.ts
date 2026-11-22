@@ -15,6 +15,7 @@ import { bodyRadius, distanceTransform, moonOrbitRadius, type ScaleSnapshot } fr
 import { getBodyTexture, getRingTexture, getEarthNormal, getEarthClouds, glowTexture } from './textures';
 import { makeLayerDiskTexture, layerMidRadii, layerBoundaries, anchorLocals } from './Cutaway';
 import { makeUnitCircle } from './Orbits';
+import type { Vec3 } from '../physics/kepler';
 
 export class BodyView {
   readonly data: CelestialBody;
@@ -27,6 +28,8 @@ export class BodyView {
   readonly moonOrbitLine: THREE.Line | null = null;
   readonly glowSprite: THREE.Sprite | null = null;
   private cloudsMesh: THREE.Mesh | null = null;
+  private axisGroup: THREE.Group | null = null;
+  private readonly tmpOrb: Vec3 = { x: 0, y: 0, z: 0 };
 
   // Corte interior (cutaway)
   private cutawayGroup: THREE.Group | null = null;
@@ -110,13 +113,20 @@ export class BodyView {
       }
     }
     if (this.ringsMesh) {
-      const rt = await getRingTexture();
+      const rt = await getRingTexture(this.data.id);
       const rm = this.ringsMesh.material as THREE.MeshStandardNodeMaterial;
       rm.map = rt.tex;
-      // el PNG real ya trae canal alfa propio; el procedural necesita alphaMap
-      if (!rt.isReal) rm.alphaMap = rt.tex;
+      // el PNG real ya trae canal alfa propio; el procedural de Saturno usa alphaMap, el de Urano es RGBA
+      if (!rt.isReal && this.data.id !== 'uranus') rm.alphaMap = rt.tex;
       rm.transparent = true;
-      rm.alphaTest = 0.02;
+      if (this.data.id === 'uranus') {
+        rm.color = new THREE.Color(0x9cb4c9);
+        rm.emissive = new THREE.Color(0x000000);
+        rm.opacity = 0.55;
+        rm.alphaTest = 0.01;
+      } else {
+        rm.alphaTest = 0.02;
+      }
       rm.needsUpdate = true;
     }
   }
@@ -227,8 +237,15 @@ export class BodyView {
 
   attachToParent(parent: BodyView) {
     this.parentView = parent;
-    parent.group.add(this.group);
-    if (this.moonOrbitLine) parent.group.add(this.moonOrbitLine);
+    const useEqPlane = parent.data.id === 'jupiter' || parent.data.id === 'saturn';
+    const host = useEqPlane ? parent.tiltGroup : parent.group;
+    host.add(this.group);
+    if (this.moonOrbitLine) {
+      host.add(this.moonOrbitLine);
+      if (!useEqPlane && this.data.moonOf) {
+        this.moonOrbitLine.rotation.x = THREE.MathUtils.degToRad(this.data.moonOf.iDeg);
+      }
+    }
   }
 
   /* ---------------- Corte interior (cutaway) ---------------- */
@@ -331,8 +348,9 @@ export class BodyView {
     for (const s of this.cutawayShells) {
       (s.material as THREE.MeshStandardNodeMaterial).opacity = Math.min(0.98, p * 1.2);
     }
-    // las nubes tapan el corte: ocultarlas al abrir
+    // las nubes y la atmósfera tapan o flotan sobre el corte: ocultarlas al abrir
     if (this.cloudsMesh) this.cloudsMesh.visible = p < 0.4;
+    if (this.atmoMesh) this.atmoMesh.visible = p < 0.15;
   }
 
   get parent(): BodyView | null {
@@ -357,6 +375,7 @@ export class BodyView {
     if (this.ringsMesh) this.ringsMesh.scale.setScalar(this.visualRadius);
     if (this.cloudsMesh) this.cloudsMesh.scale.setScalar(this.visualRadius);
     if (this.cutawayGroup) this.cutawayGroup.scale.setScalar(this.visualRadius);
+    if (this.axisGroup) this.axisGroup.scale.setScalar(this.visualRadius);
     if (this.glowSprite) {
       // En modo real el resplandor es compacto: el disco solar es ~30% del radio
       // de la órbita de Mercurio (con tamaños ×25) y el halo no debe invadirla.
@@ -369,14 +388,50 @@ export class BodyView {
         s.mode === 'real' ? 0.55 : 1.0;
     }
     if (this.data.moonOf && this.parentView) {
+      const ringsOuterRatio = this.parentView.data.rings
+        ? this.parentView.data.rings.outerKm / this.parentView.data.radiusKm
+        : 0;
       const { radius } = moonOrbitRadius(
         this.data.moonOf.radiusKm,
         this.parentView.visualRadius,
-        s
+        s,
+        ringsOuterRatio
       );
       this.moonOrbitR = radius;
       this.moonOrbitLine?.scale.setScalar(radius);
     }
+  }
+
+  /** Muestra/oculta el eje de rotación y anillo ecuatorial (capa didáctica). */
+  setAxisVisible(v: boolean) {
+    if (v && !this.axisGroup) {
+      const g = new THREE.Group();
+      const axisGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, -1.65, 0),
+        new THREE.Vector3(0, 1.65, 0)
+      ]);
+      const axisMat = new THREE.LineBasicNodeMaterial({
+        color: 0x38bdf8,
+        transparent: true,
+        opacity: 0.85
+      });
+      g.add(new THREE.Line(axisGeo, axisMat));
+
+      const tipGeo = new THREE.ConeGeometry(0.06, 0.16, 10);
+      const tipMat = new THREE.MeshBasicNodeMaterial({ color: 0x38bdf8 });
+      const tip = new THREE.Mesh(tipGeo, tipMat);
+      tip.position.set(0, 1.68, 0);
+      g.add(tip);
+
+      const eqLine = makeUnitCircle(0xfbbf24, 0.45);
+      eqLine.scale.setScalar(1.06);
+      g.add(eqLine);
+
+      g.scale.setScalar(this.visualRadius);
+      this.axisGroup = g;
+      this.tiltGroup.add(g);
+    }
+    if (this.axisGroup) this.axisGroup.visible = v;
   }
 
   /** Actualiza posición y rotación para un instante simulado. */
@@ -384,17 +439,27 @@ export class BodyView {
     const d = this.data;
     // Traslación
     if (d.orbital) {
-      const p = orbitalPosition(d.orbital, simDays, undefined, {
+      const p = orbitalPosition(d.orbital, simDays, this.tmpOrb, {
         distanceTransform: (rAU) => distanceTransform(rAU, s)
       });
       this.group.position.set(p.x, p.y, p.z);
     } else if (d.moonOf && this.parentView) {
       const angle = TAU * (simDays / d.moonOf.periodDays) + this.phaseOffset;
       const r = this.moonOrbitR;
-      this.group.position.set(Math.cos(angle) * r, 0, -Math.sin(angle) * r);
+      const useEqPlane =
+        this.parentView.data.id === 'jupiter' || this.parentView.data.id === 'saturn';
+      const inc = useEqPlane ? 0 : THREE.MathUtils.degToRad(d.moonOf.iDeg);
+      const sinA = Math.sin(angle);
+      this.group.position.set(
+        Math.cos(angle) * r,
+        sinA * Math.sin(inc) * r,
+        -sinA * Math.cos(inc) * r
+      );
     }
-    // Rotación axial (negativa = retrógrada)
-    const rot = (simDays * 24) / d.rotationHours;
+    // Rotación axial: si axialTiltDeg > 90°, el eje ya está invertido por la UAI;
+    // usar Math.abs evita la doble negación que volvía prógrado a Venus/Urano/Plutón.
+    const rotHours = d.axialTiltDeg > 90 ? Math.abs(d.rotationHours) : d.rotationHours;
+    const rot = (simDays * 24) / rotHours;
     this.spinGroup.rotation.y = TAU * rot;
     // Nubes: deriva levemente más rápida que la superficie
     if (this.cloudsMesh) this.cloudsMesh.rotation.y = TAU * rot * 1.07;
