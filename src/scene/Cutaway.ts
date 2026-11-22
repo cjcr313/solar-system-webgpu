@@ -14,23 +14,36 @@ import type { CelestialBody, LayerInfo } from '../data/celestialData';
  * Textura del disco de corte: anillos concéntricos por capa
  * -------------------------------------------------------------- */
 
-/** Radios normalizados (inner, outer, mid) en orden centro→superficie, consistentes entre disco 2D, cúpulas 3D y anclas. */
-function computeLayerRadii(body: CelestialBody): { inner: number; outer: number; mid: number }[] {
+/** Radios normalizados (inner, outer, mid) en orden centro→superficie, consistentes entre paredes 3D, núcleo y anclas. */
+export function computeLayerRadii(body: CelestialBody): { inner: number; outer: number; mid: number }[] {
   const layers = body.structure;
   const total = layers.reduce((s, l) => s + l.pct, 0) || 100;
-  const MIN_FRAC = 9 / 506;
+  const MIN_FRAC = 0.022;
+  const MIN_CORE = layers.length >= 2 ? 0.17 : 0;
   const res: { inner: number; outer: number; mid: number }[] = new Array(layers.length);
   let rOuter = 1;
-  for (let i = layers.length - 1; i >= 0; i--) {
+  for (let i = layers.length - 1; i >= 1; i--) {
     const frac = layers[i].pct / total;
+    const minReserve = MIN_CORE + (i - 1) * MIN_FRAC;
     let rInner = Math.sqrt(Math.max(rOuter * rOuter - frac, 0));
     rInner = Math.min(rInner, rOuter - MIN_FRAC);
-    if (rOuter - rInner < 0.002) rInner = rOuter - 0.002;
-    rInner = Math.max(rInner, 0);
+    rInner = Math.max(rInner, minReserve);
     res[i] = { inner: rInner, outer: rOuter, mid: (rInner + rOuter) * 0.5 };
     rOuter = rInner;
   }
+  if (layers.length > 0) {
+    res[0] = { inner: 0, outer: rOuter, mid: rOuter * 0.55 };
+  }
   return res;
+}
+
+function hashSeed(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
 }
 
 export function makeLayerDiskTexture(body: CelestialBody): THREE.CanvasTexture {
@@ -40,39 +53,81 @@ export function makeLayerDiskTexture(body: CelestialBody): THREE.CanvasTexture {
   const ctx = c.getContext('2d')!;
   const cx = S / 2,
     cy = S / 2,
-    R = S / 2 - 6;
+    R = S / 2 - 4;
 
   const radii = computeLayerRadii(body);
+  let seed = hashSeed(body.id);
+  const rnd = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
 
   ctx.clearRect(0, 0, S, S);
   let innermost = R;
   for (let i = body.structure.length - 1; i >= 0; i--) {
     const l = body.structure[i];
     const rOuter = radii[i].outer * R;
-    const rInner = Math.max(radii[i].inner * R, 1);
+    const rInner = Math.max(radii[i].inner * R, 0);
+
+    ctx.save();
     ctx.beginPath();
     ctx.arc(cx, cy, rOuter, 0, Math.PI * 2);
-    ctx.arc(cx, cy, rInner, 0, Math.PI * 2, true);
+    if (rInner > 0) ctx.arc(cx, cy, rInner, 0, Math.PI * 2, true);
+    ctx.clip();
+
+    // Base + gradiente radial para dar volumen y relieve geológico a cada estrato
     ctx.fillStyle = l.color;
-    ctx.fill();
-    if (rInner > 3) {
-      // línea divisoria sutil entre capas
+    ctx.fillRect(0, 0, S, S);
+
+    const shade = ctx.createRadialGradient(cx, cy, rInner, cx, cy, rOuter);
+    if (i === 0) {
+      shade.addColorStop(0, 'rgba(255,255,245,0.65)');
+      shade.addColorStop(0.55, 'rgba(255,235,190,0.18)');
+      shade.addColorStop(1, 'rgba(0,0,0,0.18)');
+    } else {
+      shade.addColorStop(0, 'rgba(0,0,0,0.22)');
+      shade.addColorStop(0.18, 'rgba(255,255,255,0.06)');
+      shade.addColorStop(0.85, 'rgba(255,255,255,0.08)');
+      shade.addColorStop(1, 'rgba(0,0,0,0.16)');
+    }
+    ctx.fillStyle = shade;
+    ctx.fillRect(0, 0, S, S);
+
+    // Vetas convectivas / grano estratigráfico dentro de la capa
+    const span = rOuter - rInner;
+    if (span > 10) {
+      const arcs = Math.min(70, Math.max(18, Math.round(span * 0.4)));
+      for (let a = 0; a < arcs; a++) {
+        const rr = rInner + (0.12 + 0.76 * rnd()) * span;
+        const th0 = rnd() * Math.PI * 2;
+        const th1 = th0 + 0.25 + rnd() * 0.85;
+        ctx.beginPath();
+        ctx.arc(cx, cy, rr, th0, th1);
+        ctx.strokeStyle = rnd() > 0.45 ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.12)';
+        ctx.lineWidth = 1.5 + rnd() * Math.min(5, span * 0.14);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+
+    if (rInner > 2) {
       ctx.beginPath();
       ctx.arc(cx, cy, rInner, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(255,255,255,0.30)';
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(255,255,255,0.36)';
+      ctx.lineWidth = 2.5;
       ctx.stroke();
     }
-    innermost = Math.min(innermost, rInner);
+    innermost = Math.min(innermost, rInner || rOuter);
   }
-  // brillo radial del núcleo (lo que queda al centro)
-  if (innermost > 2) {
-    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, innermost);
-    g.addColorStop(0, 'rgba(255,255,245,0.9)');
+
+  // Brillo incandescente suave en el núcleo central
+  if (innermost > 4) {
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, innermost * 0.9);
+    g.addColorStop(0, 'rgba(255,255,250,0.72)');
     g.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.arc(cx, cy, innermost, 0, Math.PI * 2);
+    ctx.arc(cx, cy, innermost * 0.9, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -92,17 +147,16 @@ export function layerBoundaries(body: CelestialBody): number[] {
   return computeLayerRadii(body).map((r) => r.outer);
 }
 
-/** Puntos de anclaje locales (espacio unitario del disco) para las etiquetas. */
+/** Puntos de anclaje locales sobre la cara XY abierta (+X, +Y, z=0.02) del octante. */
 export function anchorLocals(layers: LayerInfo[], mids: number[]): THREE.Vector3[] {
   const n = layers.length;
   return layers.map((_, i) => {
-    // abanico escalonado sobre el borde real del semicírculo (z ≤ 0):
-    // de abajo (−80°) a casi horizontal-arriba (−10°), separación vertical por capa
-    const ang = (Math.PI / 180) * -(80 - (i * 70) / Math.max(n - 1, 1));
+    // Abanico de 16° (cerca del eje +X en núcleo) a 74° (cerca de +Y en corteza)
+    const ang = (Math.PI / 180) * (16 + (i * 58) / Math.max(n - 1, 1));
     return new THREE.Vector3(
-      0.04,
-      Math.cos(ang) * mids[i] * 0.97,
-      Math.sin(ang) * mids[i] * 0.97
+      Math.cos(ang) * mids[i],
+      Math.sin(ang) * mids[i],
+      0.025
     );
   });
 }
@@ -121,6 +175,8 @@ export class CutawayLabels {
   private root: HTMLElement;
   private items: CutawayItem[] = [];
   private tmp = new THREE.Vector3();
+  private activeIndex: number | null = null;
+  onSelectLayer?: (index: number | null) => void;
   visible = false;
 
   constructor() {
@@ -138,6 +194,7 @@ export class CutawayLabels {
     getAnchorWorld: (layerIndex: number, out: THREE.Vector3) => THREE.Vector3
   ) {
     this.clear();
+    this.activeIndex = null;
     const total = body.structure.reduce((s, l) => s + l.pct, 0) || 100;
     body.structure.forEach((layer, i) => {
       const el = document.createElement('div');
@@ -160,10 +217,25 @@ export class CutawayLabels {
       link.style.display = 'none';
       this.root.appendChild(link);
       el.querySelector('.cutaway-head')!.addEventListener('click', () => {
-        el.classList.toggle('open');
+        this.setActiveLayer(this.activeIndex === i ? null : i);
       });
       this.items.push({ el, link, getWorldPos: (o) => getAnchorWorld(i, o) });
     });
+  }
+
+  setActiveLayer(index: number | null) {
+    this.activeIndex = index;
+    this.items.forEach((it, idx) => {
+      const active = index === idx;
+      it.el.classList.toggle('open', active);
+      it.el.classList.toggle('active-layer', active);
+      it.link.classList.toggle('active-layer', active);
+    });
+    this.onSelectLayer?.(index);
+  }
+
+  getActiveLayer(): number | null {
+    return this.activeIndex;
   }
 
   update(camera: THREE.PerspectiveCamera, w: number, h: number, progress: number) {
@@ -202,7 +274,7 @@ export class CutawayLabels {
     // 2) anti-solape vertical dinámico usando la altura real de cada caja
     const GAP = 8;
     const minTop = 76;
-    const maxBot = h - 96;
+    const maxBot = h - 134;
     projected.sort((a, b) => a.ay - b.ay);
     for (let i = 0; i < projected.length; i++) {
       const pr = projected[i];

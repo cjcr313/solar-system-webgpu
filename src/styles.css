@@ -281,6 +281,15 @@ input[type='range']:focus-visible {
   left: auto;
   right: -6px;
 }
+.cutaway-box.active-layer {
+  border-color: rgb(34 211 238 / 0.78);
+  box-shadow:
+    0 0 18px rgb(34 211 238 / 0.25),
+    0 8px 28px rgb(0 0 0 / 0.55);
+}
+.cutaway-box.active-layer .cutaway-name {
+  color: #7deeff;
+}
 .cutaway-link {
   position: absolute;
   height: 2px;
@@ -288,6 +297,11 @@ input[type='range']:focus-visible {
   background: linear-gradient(90deg, rgba(34, 211, 238, 0.5), rgba(34, 211, 238, 0.95));
   transform-origin: 0 50%;
   pointer-events: none;
+}
+.cutaway-link.active-layer {
+  height: 2.5px;
+  background: linear-gradient(90deg, rgba(125, 238, 255, 0.85), #22d3ee);
+  box-shadow: 0 0 8px rgb(34 211 238 / 0.6);
 }
 .cutaway-head {
   display: flex;
@@ -363,4 +377,29 @@ input[type='range']:focus-visible {
 }
 #cutaway-hint:hover {
   color: #7deeff;
+  border-color: rgb(34 211 238 / 0.55);
+}
+
+#cutaway-bar {
+  position: fixed;
+  bottom: 78px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 26;
+  display: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  max-width: calc(100vw - 24px);
+  padding: 7px 12px;
+  border-radius: 12px;
+  pointer-events: auto;
+  animation: fadeIn 0.25s ease both;
+}
+@media (max-width: 639px) {
+  #cutaway-bar,
+  #cutaway-hint {
+    display: none !important;
+  }
 }

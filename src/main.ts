@@ -20,7 +20,11 @@ async function boot(): Promise<void> {
   const { renderer, backend } = await createRenderer(canvas);
   configureRenderer(renderer);
   simStore.getState().setBackend(backend);
-  renderer.setSize(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight, false);
+  renderer.setSize(
+    Math.max(canvas.clientWidth || window.innerWidth, 1),
+    Math.max(canvas.clientHeight || window.innerHeight, 1),
+    false
+  );
 
   setMsg('GENERANDO TEXTURAS PROCEDURALES…');
   const sim = new Simulation(canvas, renderer);

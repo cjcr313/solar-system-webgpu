@@ -13,7 +13,7 @@ import type { CelestialBody } from '../data/celestialData';
 import { orbitalPosition, TAU } from '../physics/kepler';
 import { bodyRadius, distanceTransform, moonOrbitRadius, type ScaleSnapshot } from '../core/scales';
 import { getBodyTexture, getRingTexture, getEarthNormal, getEarthClouds, glowTexture } from './textures';
-import { makeLayerDiskTexture, layerMidRadii, layerBoundaries, anchorLocals } from './Cutaway';
+import { makeLayerDiskTexture, computeLayerRadii, layerMidRadii, anchorLocals } from './Cutaway';
 import { makeUnitCircle } from './Orbits';
 import type { Vec3 } from '../physics/kepler';
 
@@ -31,11 +31,14 @@ export class BodyView {
   private axisGroup: THREE.Group | null = null;
   private readonly tmpOrb: Vec3 = { x: 0, y: 0, z: 0 };
 
-  // Corte interior (cutaway)
+  // Corte interior (octante 3D)
   private cutawayGroup: THREE.Group | null = null;
-  private cutawayHalfR: THREE.Mesh | null = null;
-  private cutawayDisk: THREE.Mesh | null = null;
-  private cutawayShells: THREE.Mesh[] = [];
+  private cutawayCap: THREE.Mesh | null = null;
+  private cutawayWalls: THREE.Mesh[] = [];
+  private cutawayCore: THREE.Mesh | null = null;
+  private cutawayHighlight: THREE.Mesh[] = [];
+  private cutawayRadii: { inner: number; outer: number; mid: number }[] = [];
+  private activeCutawayLayer: number | null = null;
   private cutawayAnchors: THREE.Vector3[] = [];
   cutawayProgress = 0;
   private cutawayTarget = 0;
@@ -105,9 +108,9 @@ export class BodyView {
         if (clouds) this.buildClouds(clouds);
       }
       mat.needsUpdate = true;
-      // sincronizar la mitad deslizante del corte con la textura cargada
-      if (this.cutawayHalfR) {
-        const rm = this.cutawayHalfR.material as THREE.MeshStandardNodeMaterial;
+      // sincronizar la tapa deslizante del corte con la textura cargada
+      if (this.cutawayCap) {
+        const rm = this.cutawayCap.material as THREE.MeshStandardNodeMaterial;
         rm.map = mat.map;
         rm.needsUpdate = true;
       }
@@ -260,64 +263,149 @@ export class BodyView {
     return this.cutawayTarget === 1;
   }
 
+  private makeSphereSlice(
+    radius: number,
+    ws: number,
+    hs: number,
+    phiStart: number,
+    phiLen: number,
+    thetaStart: number,
+    thetaLen: number
+  ): THREE.SphereGeometry {
+    const geo = new THREE.SphereGeometry(radius, ws, hs, phiStart, phiLen, thetaStart, thetaLen);
+    const uv = geo.attributes.uv as THREE.BufferAttribute;
+    for (let iy = 0; iy <= hs; iy++) {
+      const theta = thetaStart + (iy / hs) * thetaLen;
+      const vCoord = 1 - theta / Math.PI;
+      for (let ix = 0; ix <= ws; ix++) {
+        const idx = iy * (ws + 1) + ix;
+        const phi = phiStart + (ix / ws) * phiLen;
+        const uOff = uv.getX(idx) - ix / ws;
+        uv.setXY(idx, phi / (Math.PI * 2) + uOff * (phiLen / (Math.PI * 2)), vCoord);
+      }
+    }
+    uv.needsUpdate = true;
+    return geo;
+  }
+
   private buildCutaway() {
     const g = new THREE.Group();
     const baseMat = this.mesh.material as THREE.MeshStandardNodeMaterial;
-    const matR = baseMat.clone();
-    matR.transparent = true;
-    // mitad que permanece (x ≤ 0) y mitad que se abre (x ≥ 0)
-    const halfL = new THREE.Mesh(
-      new THREE.SphereGeometry(1, 48, 32, -Math.PI / 2, Math.PI),
+    const matCap = baseMat.clone();
+    matCap.transparent = true;
+
+    // 1) Cáscara 7/8 fija (deja abierto el octante +X, +Y, +Z correspondiente a φ∈[π/2, π], θ∈[0, π/2])
+    const southHalf = new THREE.Mesh(
+      this.makeSphereSlice(1, 48, 18, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
       baseMat
     );
-    this.cutawayHalfR = new THREE.Mesh(
-      new THREE.SphereGeometry(1, 48, 32, Math.PI / 2, Math.PI),
-      matR
+    const north34 = new THREE.Mesh(
+      this.makeSphereSlice(1, 36, 18, Math.PI, Math.PI * 1.5, 0, Math.PI / 2),
+      baseMat
     );
-    // disco de capas: semicírculo en el plano YZ con normal +X
-    const diskMat = new THREE.MeshBasicNodeMaterial({
-      map: makeLayerDiskTexture(this.data),
+
+    // 2) Tapa octante deslizante que se retira en diagonal al abrir
+    this.cutawayCap = new THREE.Mesh(
+      this.makeSphereSlice(1, 18, 18, Math.PI / 2, Math.PI / 2, 0, Math.PI / 2),
+      matCap
+    );
+
+    // 3) Tres paredes ortogonales de corte con textura geológica e iluminación cálida
+    this.cutawayRadii = computeLayerRadii(this.data);
+    this.cutawayAnchors = anchorLocals(
+      this.data.structure,
+      layerMidRadii(this.data)
+    );
+    const diskTex = makeLayerDiskTexture(this.data);
+    const wallMat = new THREE.MeshStandardNodeMaterial({
+      map: diskTex,
+      emissiveMap: diskTex,
+      emissive: new THREE.Color(0.58, 0.58, 0.58),
+      roughness: 0.72,
+      metalness: 0.04,
       transparent: true,
       opacity: 0,
       side: THREE.DoubleSide
     });
-    this.cutawayDisk = new THREE.Mesh(
-      new THREE.CircleGeometry(0.995, 96, -Math.PI / 2, Math.PI),
-      diskMat
-    );
-    this.cutawayDisk.rotation.y = Math.PI / 2;
-    this.cutawayAnchors = anchorLocals(this.data.structure, layerMidRadii(this.data));
 
-    // cascarones concéntricos (x ≤ 0): volumen 3D interior tipo “cebolla cortada”
-    // — evita el efecto de “sola pared” hueca durante la transición
-    const bounds = layerBoundaries(this.data);
-    this.cutawayShells = [];
-    this.data.structure.forEach((layer, i) => {
-      const r = bounds[i] * 0.965; // frontera externa, con aire para no pegarse a la cáscara
-      if (r > 0.955) return; // coincide (casi) con la cáscara exterior texturizada
-      const sm = new THREE.MeshStandardNodeMaterial({
-        color: new THREE.Color(layer.color),
-        roughness: 0.85,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0
-      });
-      // brillo propio por capa: las cúpulas internas se leen aunque la luz
-      // del Sol sea rasante (el interior del corte no queda en sombra total)
-      sm.emissive = new THREE.Color(layer.color).multiplyScalar(i === 0 ? 0.45 : 0.22);
-      const shell = new THREE.Mesh(
-        new THREE.SphereGeometry(r, 48, 32, -Math.PI / 2, Math.PI),
-        sm
-      );
-      this.cutawayShells.push(shell);
-      g.add(shell);
+    const wallXY = new THREE.Mesh(new THREE.CircleGeometry(0.998, 64, 0, Math.PI / 2), wallMat);
+    const wallYZ = new THREE.Mesh(new THREE.CircleGeometry(0.998, 64, 0, Math.PI / 2), wallMat);
+    wallYZ.rotation.y = -Math.PI / 2;
+    const wallXZ = new THREE.Mesh(new THREE.CircleGeometry(0.998, 64, -Math.PI / 2, Math.PI / 2), wallMat);
+    wallXZ.rotation.x = -Math.PI / 2;
+    this.cutawayWalls = [wallXY, wallYZ, wallXZ];
+
+    // 4) Núcleo 3D volumétrico sobresaliente en el vértice central
+    const coreR = Math.min(this.cutawayRadii[0]?.outer ?? 0.18, 0.42);
+    const coreColor = new THREE.Color(this.data.structure[0]?.color ?? '#ffe066');
+    const coreMat = new THREE.MeshStandardNodeMaterial({
+      color: coreColor,
+      emissive: coreColor.clone().multiplyScalar(0.55),
+      roughness: 0.48,
+      transparent: true,
+      opacity: 0
     });
+    this.cutawayCore = new THREE.Mesh(new THREE.SphereGeometry(coreR, 36, 24), coreMat);
 
-    g.add(halfL, this.cutawayHalfR, this.cutawayDisk);
+    // 5) Anillos de resaltado 3D para destacar la capa seleccionada
+    const hlMat = new THREE.MeshBasicNodeMaterial({
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    const hlXY = new THREE.Mesh(new THREE.RingGeometry(0.1, 0.2, 48, 1, 0, Math.PI / 2), hlMat);
+    hlXY.position.z = 0.005;
+    const hlYZ = new THREE.Mesh(new THREE.RingGeometry(0.1, 0.2, 48, 1, 0, Math.PI / 2), hlMat);
+    hlYZ.rotation.y = -Math.PI / 2;
+    hlYZ.position.x = 0.005;
+    const hlXZ = new THREE.Mesh(new THREE.RingGeometry(0.1, 0.2, 48, 1, -Math.PI / 2, Math.PI / 2), hlMat);
+    hlXZ.rotation.x = -Math.PI / 2;
+    hlXZ.position.y = 0.005;
+    this.cutawayHighlight = [hlXY, hlYZ, hlXZ];
+    for (const h of this.cutawayHighlight) h.visible = false;
+
+    g.add(
+      southHalf,
+      north34,
+      this.cutawayCap,
+      wallXY,
+      wallYZ,
+      wallXZ,
+      this.cutawayCore,
+      hlXY,
+      hlYZ,
+      hlXZ
+    );
     g.visible = false;
     g.scale.setScalar(this.visualRadius);
     this.cutawayGroup = g;
     this.tiltGroup.add(g);
+  }
+
+  /** Resalta en 3D la capa seleccionada del corte interior. */
+  setHighlightedLayer(idx: number | null) {
+    this.activeCutawayLayer = idx;
+    if (!this.cutawayGroup || this.cutawayHighlight.length !== 3) return;
+    if (idx === null || !this.cutawayRadii[idx]) {
+      for (const h of this.cutawayHighlight) h.visible = false;
+      return;
+    }
+    const { inner, outer } = this.cutawayRadii[idx];
+    const rIn = Math.max(inner, 0.002);
+    const rOut = Math.max(outer, rIn + 0.01);
+    const angles: [number, number][] = [
+      [0, Math.PI / 2],
+      [0, Math.PI / 2],
+      [-Math.PI / 2, Math.PI / 2]
+    ];
+    this.cutawayHighlight.forEach((h, wi) => {
+      h.geometry.dispose();
+      h.geometry = new THREE.RingGeometry(rIn, rOut, 48, 1, angles[wi][0], angles[wi][1]);
+      h.visible = true;
+    });
   }
 
   /** Posición world del anclaje de la etiqueta de la capa i. */
@@ -330,7 +418,7 @@ export class BodyView {
   /** Anima la apertura/cierre del corte (lerp exponencial, ~0.6 s). */
   updateCutaway(dt: number) {
     if (!this.cutawayGroup) return;
-    const k = 1 - Math.exp(-dt * 4.2);
+    const k = 1 - Math.exp(-dt * 4.6);
     this.cutawayProgress += (this.cutawayTarget - this.cutawayProgress) * k;
     if (Math.abs(this.cutawayTarget - this.cutawayProgress) < 0.002) {
       this.cutawayProgress = this.cutawayTarget;
@@ -339,15 +427,25 @@ export class BodyView {
     this.cutawayGroup.visible = p > 0.001;
     // la esfera completa solo aparece completamente cerrada
     this.mesh.visible = p < 0.02;
-    // mitad derecha: se desvanece mientras se desliza (easeOut cuadrático)
-    const rm = this.cutawayHalfR!.material as THREE.MeshStandardNodeMaterial;
+    // tapa octante: se desliza hacia (+X, +Y, +Z) mientras se desvanece
+    const rm = this.cutawayCap!.material as THREE.MeshStandardNodeMaterial;
     rm.opacity = 1 - p;
-    this.cutawayHalfR!.position.x = 0.42 * p * p;
-    // disco de capas: fade-in rápido (junto a los cascarones internos)
-    (this.cutawayDisk!.material as THREE.MeshBasicNodeMaterial).opacity = Math.min(1, p * 1.5);
-    for (const s of this.cutawayShells) {
-      (s.material as THREE.MeshStandardNodeMaterial).opacity = Math.min(0.98, p * 1.2);
+    const slide = 0.52 * p * p;
+    this.cutawayCap!.position.set(slide, slide * 0.85, slide);
+    this.cutawayCap!.rotation.y = 0.16 * p;
+
+    const wallOp = Math.min(1, p * 1.45);
+    for (const w of this.cutawayWalls) {
+      (w.material as THREE.MeshStandardNodeMaterial).opacity = wallOp;
     }
+    if (this.cutawayCore) {
+      (this.cutawayCore.material as THREE.MeshStandardNodeMaterial).opacity = wallOp;
+    }
+    if (this.cutawayHighlight.length > 0 && this.activeCutawayLayer !== null) {
+      const hlMat = this.cutawayHighlight[0].material as THREE.MeshBasicNodeMaterial;
+      hlMat.opacity = 0.42 * Math.min(1, p * 1.5);
+    }
+
     // las nubes y la atmósfera tapan o flotan sobre el corte: ocultarlas al abrir
     if (this.cloudsMesh) this.cloudsMesh.visible = p < 0.4;
     if (this.atmoMesh) this.atmoMesh.visible = p < 0.15;
@@ -357,13 +455,13 @@ export class BodyView {
     return this.parentView;
   }
 
-  /** Dirección MUNDO de la cara abierta del corte (+X local del grupo del corte). */
+  /** Dirección MUNDO óptima hacia el octante abierto (+X, +Y, +Z locales). */
   getCutawayOpenDir(out: THREE.Vector3): THREE.Vector3 {
-    if (!this.cutawayGroup) return out.set(1, 0, 0);
+    if (!this.cutawayGroup) return out.set(1, 0.62, 1).normalize();
     this.cutawayGroup.updateWorldMatrix(true, false);
     const q = new THREE.Quaternion();
     this.cutawayGroup.getWorldQuaternion(q);
-    return out.set(1, 0, 0).applyQuaternion(q).normalize();
+    return out.set(1, 0.62, 1).normalize().applyQuaternion(q).normalize();
   }
 
   /** Recalcula radios visuales y órbitas al cambiar la escala. */

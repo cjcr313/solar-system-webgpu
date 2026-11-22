@@ -273,19 +273,31 @@ export class Simulation {
       }
       if (state.selectedId !== prev.selectedId) this.labels.setSelected(state.selectedId);
       if (state.cutawayBodyId !== prev.cutawayBodyId) {
-        for (const [id, b] of this.bodies) b.setCutaway(state.cutawayBodyId === id);
+        for (const [id, b] of this.bodies) {
+          b.setCutaway(state.cutawayBodyId === id);
+          if (state.cutawayBodyId !== id) b.setHighlightedLayer(null);
+        }
         const active = state.cutawayBodyId ? this.bodies.get(state.cutawayBodyId) : null;
         if (active) {
-          this.cutawayLabels.build(active.data, (i, o) => active.getCutawayAnchor(i, o));
-          this.cutawayLabels.visible = true;
-          // Encuadre guiado: mirar la CARA ABIERTA del corte con leve
-          // elevación (las cúpulas internas se aprecian en volumen).
-          active.getWorldPos(this.sVel);
+          // Enfocar automáticamente cerca del cuerpo para ver el interior con claridad
+          const closeMult = active.data.rings ? 3.8 : active.data.type === 'star' ? 3.6 : 3.15;
+          this.focusBody(active.id, closeMult);
           const d = active.getCutawayOpenDir(this.sAnti);
-          this.rig.aimOrbit(Math.atan2(d.x, d.z), 1.02);
+          const phi = Math.acos(THREE.MathUtils.clamp(d.y, -0.78, 0.78));
+          this.rig.aimOrbit(Math.atan2(d.x, d.z), phi);
+
+          this.cutawayLabels.build(active.data, (i, o) => active.getCutawayAnchor(i, o));
+          this.cutawayLabels.onSelectLayer = (idx) => {
+            active.setHighlightedLayer(idx);
+            this.refreshCutawayBar();
+          };
+          this.cutawayLabels.visible = true;
+          this.cutawayLabels.setActiveLayer(0);
         } else {
+          this.cutawayLabels.onSelectLayer = undefined;
           this.cutawayLabels.visible = false;
         }
+        this.refreshCutawayBar();
       }
     });
 
@@ -392,7 +404,7 @@ export class Simulation {
     return simStore.getState().selectedId;
   }
 
-  focusBody(id: string | null) {
+  focusBody(id: string | null, distanceMultOverride?: number) {
     if (!id || id.startsWith(BELT_PSEUDO_PREFIX)) return;
     const b = this.bodies.get(id);
     if (!b) return;
@@ -402,9 +414,10 @@ export class Simulation {
     const cometFloor = (st.distanceMode === 'real' ? 3.0 : 0.8) * st.distanceScale;
     const isComet = b.data.type === 'comet';
     const radius = isComet ? Math.max(b.visualRadius, cometFloor) : b.visualRadius;
+    const distMult = distanceMultOverride ?? (b.data.type === 'star' ? 9 : isComet ? 5.5 : 4.5);
     this.rig.focusOn(
       { getPos: (o) => b.getWorldPos(o), getRadius: () => radius },
-      b.data.type === 'star' ? 9 : isComet ? 5.5 : 4.5
+      distMult
     );
     // Encuadre guiado según tipo de cuerpo:
     // - Planetas: cámara del LADO DEL SOL (cara iluminada, nunca lado noche).
@@ -518,7 +531,7 @@ export class Simulation {
   }
 
   private onResize() {
-    const w = this.canvas.clientWidth;
+    const w = Math.max(this.canvas.clientWidth, 1);
     const h = Math.max(this.canvas.clientHeight, 1);
     this.rig.resize(w / h);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -568,7 +581,7 @@ export class Simulation {
     this.headlamp.target.position.copy(this.rig.focusPoint);
     this.headlamp.intensity = st.cutawayBodyId ? 0.85 : this.rig.isFollowing ? 0.25 : 0.08;
 
-    const w = this.canvas.clientWidth;
+    const w = Math.max(this.canvas.clientWidth, 1);
     const h = Math.max(this.canvas.clientHeight, 1);
     this.labels.update(this.rig.camera, w, h, st.focusedId, st.selectedId);
 
@@ -649,9 +662,12 @@ export class Simulation {
     for (const fx of this.cometFX.values()) fx.dispose();
   }
 
-  /* ---------------- Hint “Ver interior” ---------------- */
+  /* ---------------- Hint y barra de exploración del interior ---------------- */
 
   private hintEl: HTMLButtonElement | null = null;
+  private barEl: HTMLDivElement | null = null;
+  private barTitleEl: HTMLElement | null = null;
+  private barLayerEl: HTMLElement | null = null;
   private hintFor: string | null = null;
 
   private ensureHint(): HTMLButtonElement {
@@ -659,7 +675,7 @@ export class Simulation {
     const el = document.createElement('button');
     el.id = 'cutaway-hint';
     el.className = 'glass';
-    el.innerHTML = '🔭 <span>Ver interior</span>';
+    el.innerHTML = '🔬 <span>Explorar interior (C)</span>';
     el.style.display = 'none';
     el.addEventListener('click', () => {
       if (this.hintFor) simStore.getState().setCutaway(this.hintFor);
@@ -669,20 +685,74 @@ export class Simulation {
     return el;
   }
 
-  private updateCutawayHint(st: { cutawayBodyId: string | null; focusedId: string | null }) {
+  private ensureCutawayBar(): HTMLDivElement {
+    if (this.barEl) return this.barEl;
+    const el = document.createElement('div');
+    el.id = 'cutaway-bar';
+    el.className = 'glass';
+    el.style.display = 'none';
+    el.innerHTML = `
+      <span id="cb-title" class="font-mono text-[10px] tracking-wider text-cyan-300 uppercase"></span>
+      <div class="flex items-center gap-1">
+        <button id="cb-prev" class="hud-btn px-2 py-1 text-[11px]" title="Capa anterior">◀</button>
+        <span id="cb-layer" class="min-w-[130px] text-center font-mono text-[11px] text-slate-200"></span>
+        <button id="cb-next" class="hud-btn px-2 py-1 text-[11px]" title="Siguiente capa">▶</button>
+      </div>
+      <button id="cb-exit" class="hud-btn border-red-400/40 bg-red-500/10 px-2.5 py-1 text-[11px] text-red-200 hover:border-red-400/70 hover:bg-red-500/20" title="Cerrar corte interior (Esc)">✕ Salir</button>`;
+    document.getElementById('hud-root')!.appendChild(el);
+    this.barEl = el;
+    this.barTitleEl = el.querySelector('#cb-title');
+    this.barLayerEl = el.querySelector('#cb-layer');
+    el.querySelector('#cb-prev')!.addEventListener('click', () => this.stepCutawayLayer(-1));
+    el.querySelector('#cb-next')!.addEventListener('click', () => this.stepCutawayLayer(1));
+    el.querySelector('#cb-exit')!.addEventListener('click', () => simStore.getState().setCutaway(null));
+    return el;
+  }
+
+  private stepCutawayLayer(delta: number) {
+    const cutId = simStore.getState().cutawayBodyId;
+    if (!cutId) return;
+    const b = this.bodies.get(cutId);
+    if (!b || b.data.structure.length === 0) return;
+    const n = b.data.structure.length;
+    const cur = this.cutawayLabels.getActiveLayer();
+    const next = cur === null ? (delta > 0 ? 0 : n - 1) : (cur + delta + n) % n;
+    this.cutawayLabels.setActiveLayer(next);
+  }
+
+  private refreshCutawayBar() {
+    const bar = this.ensureCutawayBar();
+    const cutId = simStore.getState().cutawayBodyId;
+    const b = cutId ? this.bodies.get(cutId) : null;
+    if (!b) {
+      bar.style.display = 'none';
+      return;
+    }
+    bar.style.display = 'flex';
+    const n = b.data.structure.length;
+    const idx = this.cutawayLabels.getActiveLayer();
+    if (this.barTitleEl) this.barTitleEl.textContent = `Interior · ${b.data.name}`;
+    if (this.barLayerEl) {
+      this.barLayerEl.textContent =
+        idx !== null && b.data.structure[idx]
+          ? `${idx + 1}/${n} · ${b.data.structure[idx].name}`
+          : `${n} capas (clic para abrir)`;
+    }
+  }
+
+  private updateCutawayHint(st: {
+    cutawayBodyId: string | null;
+    focusedId: string | null;
+    selectedId: string | null;
+  }) {
     const el = this.ensureHint();
     let show = false;
-    if (!st.cutawayBodyId && st.focusedId) {
-      const b = this.bodies.get(st.focusedId);
-      if (
-        b &&
-        b.data.type !== 'comet' &&
-        b.data.structure.length >= 2 &&
-        this.rig.isFollowing &&
-        this.rig.orbitRadius < b.visualRadius * 7
-      ) {
+    const targetId = st.focusedId || st.selectedId;
+    if (!st.cutawayBodyId && targetId && !targetId.startsWith(BELT_PSEUDO_PREFIX)) {
+      const b = this.bodies.get(targetId);
+      if (b && b.data.type !== 'comet' && b.data.structure.length >= 2) {
         show = true;
-        this.hintFor = st.focusedId;
+        this.hintFor = targetId;
       }
     }
     if (!show) this.hintFor = null;
